@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckRole::class,
+            'schedule.unlocked' => \App\Http\Middleware\EnsureScheduleUnlocked::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

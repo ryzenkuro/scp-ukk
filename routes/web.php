@@ -38,6 +38,20 @@ Route::middleware(['auth', 'role:guru'])->prefix('guru')->name('guru.')->group(f
     Route::get('/dashboard', function () {
         return view('guru.dashboard');
     })->name('dashboard');
+
+    Route::get('/schedules', [\App\Http\Controllers\Guru\ScheduleController::class, 'index'])->name('schedules.index');
+
+    // Modifikasi jadwal (tambah & hapus) wajib melalui pengecekan apakah jadwal sedang dikunci
+    Route::middleware('schedule.unlocked')->group(function () {
+        Route::post('/schedules', [\App\Http\Controllers\Guru\ScheduleController::class, 'store'])->name('schedules.store');
+        Route::delete('/schedules/{schedule}', [\App\Http\Controllers\Guru\ScheduleController::class, 'destroy'])->name('schedules.destroy');
+    });
+});
+
+// Endpoint API Jadwal (Proteksi Lock Schedule untuk Postman/REST API)
+Route::middleware(['auth', 'role:guru', 'schedule.unlocked'])->prefix('api')->name('api.')->group(function () {
+    Route::post('/schedules', [\App\Http\Controllers\Guru\ScheduleController::class, 'store'])->name('schedules.store');
+    Route::delete('/schedules/{schedule}', [\App\Http\Controllers\Guru\ScheduleController::class, 'destroy'])->name('schedules.destroy');
 });
 
 // 3. Panel Tim Kesiswaan (Wali Kelas & Guru BK)
