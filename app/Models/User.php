@@ -2,13 +2,16 @@
 
 namespace App\Models;
 
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Models\Contracts\HasName;
+use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class User extends Authenticatable
+class User extends Authenticatable implements FilamentUser, HasName
 {
     use HasFactory, Notifiable;
 
@@ -62,4 +65,15 @@ class User extends Authenticatable
     {
         return $this->hasMany(LeaveRequest::class, 'student_id');
     }
+
+    public function canAccessPanel(Panel $panel): bool
+    {
+        return $this->role?->role_name === 'waka_kurikulum';
+    }
+
+    public function getFilamentName(): string
+    {
+        return $this->fullname ?? $this->username;
+    }
 }
+

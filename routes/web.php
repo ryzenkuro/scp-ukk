@@ -14,7 +14,7 @@ Route::get('/dashboard', function () {
     $role = auth()->user()->role?->role_name;
 
     return match ($role) {
-        'waka_kurikulum'        => redirect()->route('waka.dashboard'),
+        'waka_kurikulum'        => redirect('/admin'),
         'guru'                  => redirect()->route('guru.dashboard'),
         'wali_kelas', 'guru_bk' => redirect()->route('kesiswaan.dashboard'),
         'siswa', 'orang_tua'    => redirect()->route('portal.dashboard'),
@@ -56,16 +56,14 @@ Route::middleware(['auth', 'role:guru', 'schedule.unlocked'])->prefix('api')->na
 
 // 3. Panel Tim Kesiswaan (Wali Kelas & Guru BK)
 Route::middleware(['auth', 'role:wali_kelas,guru_bk'])->prefix('kesiswaan')->name('kesiswaan.')->group(function () {
-    Route::get('/dashboard', function () {
-        return view('kesiswaan.dashboard');
-    })->name('dashboard');
+    Route::get('/dashboard', [\App\Http\Controllers\Kesiswaan\KesiswaanDashboardController::class, 'index'])->name('dashboard');
+    Route::patch('/leaves/{leaveRequest}/verify', [\App\Http\Controllers\Kesiswaan\KesiswaanDashboardController::class, 'verify'])->name('leaves.verify');
 });
 
 // 4. Portal Siswa & Orang Tua
 Route::middleware(['auth', 'role:siswa,orang_tua'])->prefix('portal')->name('portal.')->group(function () {
-    Route::get('/dashboard', function () {
-        return view('portal.dashboard');
-    })->name('dashboard');
+    Route::get('/dashboard', [\App\Http\Controllers\Portal\LeaveRequestController::class, 'index'])->name('dashboard');
+    Route::post('/leaves', [\App\Http\Controllers\Portal\LeaveRequestController::class, 'store'])->name('leaves.store');
 });
 
 // Profil User Bawaan Breeze
