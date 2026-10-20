@@ -11,6 +11,8 @@ class LeaveRequest extends Model
         'student_id',
         'applicant_id',
         'verified_by',
+        'leave_type',
+        'leave_time',
         'start_date',
         'end_date',
         'reason',
