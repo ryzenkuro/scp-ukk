@@ -85,6 +85,68 @@
                 </div>
             </div>
 
+            <!-- Section Rekap Keterlambatan Jurnal (>30 Menit) -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <div class="flex items-center justify-between mb-4 border-b pb-3">
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+                            <span>⚠️</span> Rekap Keterlambatan Jurnal Hari Ini (>30 Menit)
+                        </h3>
+                        <p class="text-xs text-gray-500 mt-0.5">
+                            Daftar guru yang belum mengisi jurnal mengajar hari ini meskipun jam mengajarnya telah selesai melebihi toleransi 30 menit.
+                        </p>
+                    </div>
+                    <span class="text-xs font-bold px-2.5 py-1 rounded-full {{ $overdueSchedules->isEmpty() ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800' }}">
+                        {{ $overdueSchedules->count() }} Guru Terlambat
+                    </span>
+                </div>
+
+                @if ($overdueSchedules->isEmpty())
+                    <div class="text-center py-8 text-gray-500 text-xs">
+                        <span class="text-3xl block mb-1">🎉</span>
+                        <p class="font-bold text-gray-700">Semua Jurnal Hari Ini Telah Terisi</p>
+                        <p class="text-gray-500 mt-0.5">Tidak ada guru yang terlambat mengisi jurnal melebihi batas toleransi 30 menit.</p>
+                    </div>
+                @else
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-gray-50 text-gray-700 uppercase font-semibold text-[11px] border-y">
+                                <tr>
+                                    <th class="py-3 px-4">Nama Guru</th>
+                                    <th class="py-3 px-4">Mata Pelajaran</th>
+                                    <th class="py-3 px-4">Kelas</th>
+                                    <th class="py-3 px-4">Ruangan</th>
+                                    <th class="py-3 px-4 text-center">Jam Berakhir</th>
+                                    <th class="py-3 px-4 text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                @foreach ($overdueSchedules as $ovd)
+                                    <tr class="hover:bg-red-50/40 transition">
+                                        <td class="py-3 px-4 font-bold text-gray-900">{{ $ovd->teacher->fullname }}</td>
+                                        <td class="py-3 px-4 font-medium text-gray-800">{{ $ovd->subject }}</td>
+                                        <td class="py-3 px-4">
+                                            <span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded font-semibold text-[11px]">
+                                                {{ $ovd->schoolClass->class_name }}
+                                            </span>
+                                        </td>
+                                        <td class="py-3 px-4 text-gray-600">{{ $ovd->room->room_name }}</td>
+                                        <td class="py-3 px-4 text-center font-mono font-bold text-gray-700">
+                                            {{ substr($ovd->end_time, 0, 5) }} WIB
+                                        </td>
+                                        <td class="py-3 px-4 text-center">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-100 text-red-800 border border-red-200">
+                                                Terlambat >30 Mnt
+                                            </span>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
+            </div>
+
             <!-- Section 2: Ringkasan Master Data -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">

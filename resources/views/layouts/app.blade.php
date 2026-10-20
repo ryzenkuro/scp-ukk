@@ -28,9 +28,12 @@
             @endisset
 
             <!-- Page Content -->
-            <main>
+            <main class="pb-24 sm:pb-8">
                 {{ $slot }}
             </main>
+
+            <!-- Sticky Bottom Navigation Bar (Mobile Devices) -->
+            @include('layouts.bottom-navigation')
         </div>
     </body>
 </html>

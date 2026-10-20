@@ -3,225 +3,277 @@
         <div class="flex items-center justify-between">
             <div>
                 <h2 class="font-bold text-xl text-gray-900 leading-tight">
-                    {{ __('Panel Tim Kesiswaan - Verifikasi Perizinan Siswa') }}
+                    {{ __('Panel Verifikasi Perizinan Siswa') }}
                 </h2>
                 <p class="text-xs text-gray-500 mt-0.5">
-                    {{ $isWaliKelas ? 'Perwalian: ' . (auth()->user()->schoolClass?->class_name ?? 'Belum terhubung kelas') : 'Bimbingan Konseling (Pemantauan Seluruh Kelas)' }}
+                    Verifikasi surat permohonan izin & sakit dari siswa maupun orang tua
                 </p>
             </div>
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold {{ $isWaliKelas ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-800' }}">
-                {{ $isWaliKelas ? '👨‍🏫 Wali Kelas' : '👩‍💼 Guru Bimbingan Konseling (BK)' }}
-            </span>
+            <div class="flex items-center gap-2">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold {{ $isHomeroom ? 'bg-amber-100 text-amber-800' : 'bg-purple-100 text-purple-800' }}">
+                    {{ $isHomeroom ? '🏫 Wali Kelas: ' . ($user->schoolClass?->class_name ?? 'Belum Ditentukan') : '🛡️ Guru BK (Semua Kelas)' }}
+                </span>
+            </div>
         </div>
     </x-slot>
 
     <div class="py-8">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
 
-            <!-- Flash Alert Messages -->
+            <!-- Flash Alert Success -->
             @if (session('success'))
-                <div class="bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded-xl shadow-xs">
-                    <div class="flex items-center">
-                        <span class="text-emerald-700 font-semibold text-sm">✓ {{ session('success') }}</span>
+                <div class="bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded-xl shadow-xs flex items-start gap-3">
+                    <span class="text-xl">✅</span>
+                    <div>
+                        <h4 class="text-sm font-bold text-emerald-800">Berhasil!</h4>
+                        <p class="text-xs text-emerald-700 mt-0.5">{{ session('success') }}</p>
                     </div>
                 </div>
             @endif
 
+            <!-- Flash Alert Error -->
             @if ($errors->any())
                 <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-xl shadow-xs">
-                    <ul class="list-disc list-inside text-sm text-red-700 space-y-1">
-                        @foreach ($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
+                    <div class="flex items-start gap-3">
+                        <span class="text-xl">⚠️</span>
+                        <div>
+                            <h4 class="text-sm font-bold text-red-800">Terjadi kendala:</h4>
+                            <ul class="list-disc list-inside text-xs text-red-700 mt-1">
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    </div>
                 </div>
             @endif
 
-            <!-- Section 1: Ringkasan Status Verifikasi (Stats Overview) -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <!-- Pending Card -->
-                <div class="bg-white p-5 rounded-2xl shadow-xs border border-amber-100 flex items-center justify-between">
-                    <div>
-                        <span class="text-xs font-bold uppercase tracking-wider text-amber-600">Menunggu Verifikasi</span>
-                        <p class="text-3xl font-extrabold text-amber-600 mt-1">{{ $totalPending }}</p>
-                        <p class="text-xs text-gray-500 mt-1">Perlu tindakan persetujuan</p>
+            <!-- Stat Cards Barisan Ringkasan Status -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <a href="{{ route('kesiswaan.dashboard', ['status' => 'All']) }}"
+                    class="bg-white p-5 rounded-2xl shadow-xs border transition hover:border-indigo-300 {{ $selectedStatus === 'All' ? 'ring-2 ring-indigo-500 border-indigo-500' : 'border-gray-100' }}">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-gray-500 uppercase">Total Pengajuan</span>
+                        <span class="text-lg">📁</span>
                     </div>
-                    <div class="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-2xl">
-                        ⏳
-                    </div>
-                </div>
+                    <p class="text-2xl font-black text-gray-900 mt-2">{{ $stats['total'] }}</p>
+                    <p class="text-[11px] text-gray-400 mt-1">Seluruh berkas masuk</p>
+                </a>
 
-                <!-- Approved Card -->
-                <div class="bg-white p-5 rounded-2xl shadow-xs border border-emerald-100 flex items-center justify-between">
-                    <div>
-                        <span class="text-xs font-bold uppercase tracking-wider text-emerald-600">Telah Disetujui</span>
-                        <p class="text-3xl font-extrabold text-emerald-600 mt-1">{{ $totalApproved }}</p>
-                        <p class="text-xs text-gray-500 mt-1">Otomatis sinkron ke presensi guru</p>
+                <a href="{{ route('kesiswaan.dashboard', ['status' => 'Pending']) }}"
+                    class="bg-white p-5 rounded-2xl shadow-xs border transition hover:border-amber-300 {{ $selectedStatus === 'Pending' ? 'ring-2 ring-amber-500 border-amber-500' : 'border-gray-100' }}">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-amber-700 uppercase">Perlu Verifikasi</span>
+                        <span class="text-lg">⏳</span>
                     </div>
-                    <div class="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-2xl">
-                        ✅
-                    </div>
-                </div>
+                    <p class="text-2xl font-black text-amber-600 mt-2">{{ $stats['pending'] }}</p>
+                    <p class="text-[11px] text-amber-600 font-medium mt-1">Menunggu keputusan</p>
+                </a>
 
-                <!-- Rejected Card -->
-                <div class="bg-white p-5 rounded-2xl shadow-xs border border-red-100 flex items-center justify-between">
-                    <div>
-                        <span class="text-xs font-bold uppercase tracking-wider text-red-600">Ditolak</span>
-                        <p class="text-3xl font-extrabold text-red-600 mt-1">{{ $totalRejected }}</p>
-                        <p class="text-xs text-gray-500 mt-1">Izin tidak valid / dokumen kurang</p>
+                <a href="{{ route('kesiswaan.dashboard', ['status' => 'Approved']) }}"
+                    class="bg-white p-5 rounded-2xl shadow-xs border transition hover:border-emerald-300 {{ $selectedStatus === 'Approved' ? 'ring-2 ring-emerald-500 border-emerald-500' : 'border-gray-100' }}">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-emerald-700 uppercase">Disetujui</span>
+                        <span class="text-lg">✅</span>
                     </div>
-                    <div class="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center text-2xl">
-                        ❌
+                    <p class="text-2xl font-black text-emerald-600 mt-2">{{ $stats['approved'] }}</p>
+                    <p class="text-[11px] text-gray-400 mt-1">Siap sinkron presensi</p>
+                </a>
+
+                <a href="{{ route('kesiswaan.dashboard', ['status' => 'Rejected']) }}"
+                    class="bg-white p-5 rounded-2xl shadow-xs border transition hover:border-red-300 {{ $selectedStatus === 'Rejected' ? 'ring-2 ring-red-500 border-red-500' : 'border-gray-100' }}">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-red-700 uppercase">Ditolak</span>
+                        <span class="text-lg">❌</span>
                     </div>
-                </div>
+                    <p class="text-2xl font-black text-red-600 mt-2">{{ $stats['rejected'] }}</p>
+                    <p class="text-[11px] text-gray-400 mt-1">Tidak memenuhi syarat</p>
+                </a>
             </div>
 
-            <!-- Section 2: Tabel Verifikasi Permohonan Izin -->
+            <!-- Tabel Daftar Surat Izin Siswa -->
             <div class="bg-white rounded-2xl shadow-xs border border-gray-100 overflow-hidden">
                 <div class="p-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                        <h3 class="font-bold text-base text-gray-900">Daftar Pengajuan Surat Izin & Sakit</h3>
+                        <h3 class="text-base font-bold text-gray-900">
+                            Daftar Surat Izin Siswa
+                            @if ($selectedStatus !== 'All')
+                                <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 ml-1">
+                                    Status: {{ $selectedStatus }}
+                                </span>
+                            @endif
+                        </h3>
                         <p class="text-xs text-gray-500 mt-0.5">
-                            {{ $isWaliKelas ? 'Menampilkan permohonan dari siswa kelas perwalian Anda (' . (auth()->user()->schoolClass?->class_name ?? '-') . ')' : 'Menampilkan permohonan dari seluruh kelas (Bimbingan Konseling)' }}
+                            {{ $isHomeroom ? 'Menampilkan khusus siswa perwalian kelas ' . ($user->schoolClass?->class_name ?? '-') : 'Menampilkan siswa dari seluruh kelas binaan BK' }}
                         </p>
                     </div>
 
-                    <!-- Filter Tabs -->
-                    <div class="flex items-center gap-1.5 bg-gray-50 p-1 rounded-xl border border-gray-200">
-                        <a href="{{ route('kesiswaan.dashboard') }}"
-                            class="px-3 py-1.5 text-xs font-semibold rounded-lg transition {{ empty($statusFilter) ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-600 hover:text-gray-900' }}">
-                            Semua ({{ $leaves->count() }})
+                    <!-- Filter Dropdown / Tab Cepat -->
+                    <div class="flex items-center gap-1.5 bg-gray-50 p-1 rounded-xl border border-gray-200 text-xs font-medium">
+                        <a href="{{ route('kesiswaan.dashboard', ['status' => 'All']) }}"
+                            class="px-3 py-1.5 rounded-lg transition {{ $selectedStatus === 'All' ? 'bg-white shadow-2xs text-gray-900 font-bold' : 'text-gray-500 hover:text-gray-800' }}">
+                            Semua
                         </a>
                         <a href="{{ route('kesiswaan.dashboard', ['status' => 'Pending']) }}"
-                            class="px-3 py-1.5 text-xs font-semibold rounded-lg transition {{ $statusFilter === 'Pending' ? 'bg-white text-amber-700 shadow-xs' : 'text-gray-600 hover:text-amber-700' }}">
-                            Pending ({{ $totalPending }})
+                            class="px-3 py-1.5 rounded-lg transition {{ $selectedStatus === 'Pending' ? 'bg-white shadow-2xs text-amber-700 font-bold' : 'text-gray-500 hover:text-amber-700' }}">
+                            Pending ({{ $stats['pending'] }})
                         </a>
                         <a href="{{ route('kesiswaan.dashboard', ['status' => 'Approved']) }}"
-                            class="px-3 py-1.5 text-xs font-semibold rounded-lg transition {{ $statusFilter === 'Approved' ? 'bg-white text-emerald-700 shadow-xs' : 'text-gray-600 hover:text-emerald-700' }}">
+                            class="px-3 py-1.5 rounded-lg transition {{ $selectedStatus === 'Approved' ? 'bg-white shadow-2xs text-emerald-700 font-bold' : 'text-gray-500 hover:text-emerald-700' }}">
                             Disetujui
                         </a>
                         <a href="{{ route('kesiswaan.dashboard', ['status' => 'Rejected']) }}"
-                            class="px-3 py-1.5 text-xs font-semibold rounded-lg transition {{ $statusFilter === 'Rejected' ? 'bg-white text-red-700 shadow-xs' : 'text-gray-600 hover:text-red-700' }}">
+                            class="px-3 py-1.5 rounded-lg transition {{ $selectedStatus === 'Rejected' ? 'bg-white shadow-2xs text-red-700 font-bold' : 'text-gray-500 hover:text-red-700' }}">
                             Ditolak
                         </a>
                     </div>
                 </div>
 
-                @if ($leaves->isEmpty())
-                    <div class="p-12 text-center">
-                        <span class="text-4xl block mb-2">🎉</span>
-                        <h5 class="text-sm font-semibold text-gray-900">Tidak Ada Data Pengajuan</h5>
-                        <p class="text-xs text-gray-500 mt-1">Saat ini tidak ada surat perizinan siswa yang sesuai dengan filter yang dipilih.</p>
+                @if ($leaveRequests->isEmpty())
+                    <div class="text-center py-16 px-4">
+                        <span class="text-4xl block mb-2">📭</span>
+                        <h4 class="text-sm font-semibold text-gray-800">Tidak Ada Data Pengajuan Izin</h4>
+                        <p class="text-xs text-gray-500 mt-1">Belum ada siswa yang mengajukan perizinan pada kategori status ini.</p>
                     </div>
                 @else
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-100 text-sm">
-                            <thead class="bg-gray-50/70">
+                            <thead class="bg-gray-50/75 text-gray-600 text-xs font-bold uppercase tracking-wider">
                                 <tr>
-                                    <th class="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Identitas Siswa</th>
-                                    <th class="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Rentang Izin</th>
-                                    <th class="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Keterangan / Alasan</th>
-                                    <th class="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Bukti Surat</th>
-                                    <th class="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status & Verifikator</th>
-                                    <th class="px-6 py-3.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Tindakan</th>
+                                    <th class="px-6 py-3.5 text-left">Siswa & Kelas</th>
+                                    <th class="px-6 py-3.5 text-left">Pemohon</th>
+                                    <th class="px-6 py-3.5 text-left">Rentang Waktu</th>
+                                    <th class="px-6 py-3.5 text-left">Alasan & Dokumen</th>
+                                    <th class="px-6 py-3.5 text-left">Status Saat Ini</th>
+                                    <th class="px-6 py-3.5 text-center">Aksi Verifikasi</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100 bg-white">
-                                @foreach ($leaves as $leave)
-                                    <tr class="hover:bg-gray-50/50 transition">
-                                        <!-- Siswa -->
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="font-bold text-gray-900">{{ $leave->student->fullname }}</div>
-                                            <div class="text-xs text-gray-500 mt-0.5">
-                                                Kelas: <span class="font-semibold text-indigo-600">{{ $leave->student->schoolClass?->class_name ?? '-' }}</span>
-                                                | NIS/Username: <span class="font-mono text-gray-700">{{ $leave->student->username }}</span>
-                                            </div>
-                                            <div class="text-xs text-gray-400 mt-0.5">
-                                                Diajukan oleh: <span class="font-medium text-gray-600">{{ $leave->applicant->id === $leave->student->id ? 'Siswa Sendiri' : 'Orang Tua (' . $leave->applicant->fullname . ')' }}</span>
-                                            </div>
-                                        </td>
-
-                                        <!-- Rentang Tanggal -->
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="font-semibold text-gray-900">
-                                                {{ $leave->start_date->translatedFormat('d M Y') }}
-                                                @if($leave->start_date->ne($leave->end_date))
-                                                    - {{ $leave->end_date->translatedFormat('d M Y') }}
-                                                @endif
-                                            </div>
-                                            <div class="text-xs text-gray-500 mt-0.5">
-                                                Durasi: {{ $leave->start_date->diffInDays($leave->end_date) + 1 }} Hari
-                                            </div>
-                                        </td>
-
-                                        <!-- Alasan -->
+                                @foreach ($leaveRequests as $leave)
+                                    <tr class="hover:bg-slate-50/60 transition">
+                                        <!-- Siswa & Kelas -->
                                         <td class="px-6 py-4">
-                                            <p class="text-xs text-gray-700 max-w-xs break-words leading-relaxed">{{ $leave->reason }}</p>
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs shrink-0">
+                                                    {{ strtoupper(substr($leave->student->fullname, 0, 2)) }}
+                                                </div>
+                                                <div>
+                                                    <span class="font-bold text-gray-900 block text-xs sm:text-sm">{{ $leave->student->fullname }}</span>
+                                                    <span class="text-[11px] font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
+                                                        {{ $leave->student->schoolClass?->class_name ?? 'Tanpa Kelas' }}
+                                                    </span>
+                                                </div>
+                                            </div>
                                         </td>
 
-                                        <!-- Bukti Surat -->
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <a href="{{ asset('storage/' . $leave->document_path) }}" target="_blank"
-                                                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-900 text-xs font-semibold rounded-lg border border-indigo-200 transition">
-                                                <span>📎</span> Lihat Berkas
-                                            </a>
+                                        <!-- Pemohon -->
+                                        <td class="px-6 py-4 text-xs text-gray-600">
+                                            <span class="font-medium text-gray-800 block">{{ $leave->applicant->fullname }}</span>
+                                            <span class="text-[11px] text-gray-400 capitalize">
+                                                ({{ str_replace('_', ' ', $leave->applicant->role->role_name) }})
+                                            </span>
                                         </td>
 
-                                        <!-- Status & Verifikator -->
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            @if ($leave->status_approval === 'Approved')
-                                                <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
-                                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span> Disetujui
+                                        <!-- Rentang Waktu -->
+                                        <td class="px-6 py-4 text-xs">
+                                            <span class="font-mono font-bold text-gray-800 block">
+                                                {{ \Carbon\Carbon::parse($leave->start_date)->format('d M Y') }}
+                                            </span>
+                                            @if ($leave->start_date !== $leave->end_date)
+                                                <span class="text-gray-400 text-[11px]">s/d</span>
+                                                <span class="font-mono font-bold text-gray-800 block">
+                                                    {{ \Carbon\Carbon::parse($leave->end_date)->format('d M Y') }}
                                                 </span>
-                                                @if($leave->verifier)
-                                                    <p class="text-xs text-gray-500 mt-1">Oleh: {{ $leave->verifier->fullname }}</p>
-                                                @endif
-                                            @elseif ($leave->status_approval === 'Rejected')
-                                                <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800">
-                                                    <span class="w-1.5 h-1.5 rounded-full bg-red-600"></span> Ditolak
+                                            @endif
+                                            <span class="text-[10px] text-indigo-600 font-semibold block mt-0.5">
+                                                {{ \Carbon\Carbon::parse($leave->start_date)->diffInDays(\Carbon\Carbon::parse($leave->end_date)) + 1 }} Hari
+                                            </span>
+                                        </td>
+
+                                        <!-- Alasan & Dokumen -->
+                                        <td class="px-6 py-4">
+                                            <p class="text-xs text-gray-700 max-w-xs line-clamp-2" title="{{ $leave->reason }}">
+                                                {{ $leave->reason }}
+                                            </p>
+                                            <div class="mt-1.5">
+                                                <a href="{{ asset('storage/' . $leave->document_path) }}" target="_blank"
+                                                    class="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded transition">
+                                                    📄 Pratinjau Surat
+                                                </a>
+                                            </div>
+                                        </td>
+
+                                        <!-- Status Badge -->
+                                        <td class="px-6 py-4">
+                                            @if ($leave->status_approval === 'Pending')
+                                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+                                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                                    Pending
                                                 </span>
-                                                @if($leave->verifier)
-                                                    <p class="text-xs text-gray-500 mt-1">Oleh: {{ $leave->verifier->fullname }}</p>
-                                                @endif
+                                            @elseif ($leave->status_approval === 'Approved')
+                                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+                                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                    Disetujui
+                                                </span>
+                                                <span class="block text-[10px] text-gray-400 mt-1">
+                                                    Oleh: {{ $leave->verifier?->fullname ?? '-' }}
+                                                </span>
                                             @else
-                                                <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800">
-                                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse"></span> Menunggu Verifikasi
+                                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800">
+                                                    <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                                                    Ditolak
+                                                </span>
+                                                <span class="block text-[10px] text-gray-400 mt-1">
+                                                    Oleh: {{ $leave->verifier?->fullname ?? '-' }}
                                                 </span>
                                             @endif
                                         </td>
 
-                                        <!-- Tindakan Approve / Reject -->
-                                        <td class="px-6 py-4 whitespace-nowrap text-center">
-                                            <div class="flex items-center justify-center gap-2">
-                                                @if ($leave->status_approval !== 'Approved')
-                                                    <form method="POST" action="{{ route('kesiswaan.leaves.verify', $leave->id) }}">
+                                        <!-- Aksi Verifikasi (Approve / Reject) -->
+                                        <td class="px-6 py-4 text-center">
+                                            @if ($leave->status_approval === 'Pending')
+                                                <div class="flex items-center justify-center gap-1.5">
+                                                    <!-- Tombol Approve -->
+                                                    <form method="POST" action="{{ route('kesiswaan.leave-requests.verify', $leave->id) }}">
                                                         @csrf
                                                         @method('PATCH')
                                                         <input type="hidden" name="status" value="Approved">
-                                                        <button type="submit" onclick="return confirm('Apakah Anda yakin menyetujui pengajuan izin ini?')"
-                                                            class="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-xs transition">
-                                                            <span>✓</span> Setujui
+                                                        <button type="submit"
+                                                            onclick="return confirm('Apakah Anda yakin ingin MENYETUJUI izin siswa {{ $leave->student->fullname }}?')"
+                                                            class="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-lg transition shadow-2xs"
+                                                            title="Setujui Izin">
+                                                            ✓ Setujui
                                                         </button>
                                                     </form>
-                                                @endif
 
-                                                @if ($leave->status_approval !== 'Rejected')
-                                                    <form method="POST" action="{{ route('kesiswaan.leaves.verify', $leave->id) }}">
+                                                    <!-- Tombol Reject -->
+                                                    <form method="POST" action="{{ route('kesiswaan.leave-requests.verify', $leave->id) }}">
                                                         @csrf
                                                         @method('PATCH')
                                                         <input type="hidden" name="status" value="Rejected">
-                                                        <button type="submit" onclick="return confirm('Apakah Anda yakin menolak pengajuan izin ini?')"
-                                                            class="inline-flex items-center gap-1 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg shadow-xs transition">
-                                                            <span>✕</span> Tolak
+                                                        <button type="submit"
+                                                            onclick="return confirm('Apakah Anda yakin ingin MENOLAK izin siswa {{ $leave->student->fullname }}?')"
+                                                            class="inline-flex items-center gap-1 px-2.5 py-1.5 bg-red-600 hover:bg-red-700 text-white font-semibold text-xs rounded-lg transition shadow-2xs"
+                                                            title="Tolak Izin">
+                                                            ✗ Tolak
                                                         </button>
                                                     </form>
-                                                @endif
-                                            </div>
+                                                </div>
+                                            @else
+                                                <span class="text-xs text-gray-400 italic">
+                                                    Selesai diverifikasi
+                                                </span>
+                                            @endif
                                         </td>
                                     </tr>
                                 @endforeach
                             </tbody>
                         </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    <div class="p-4 border-t border-gray-100">
+                        {{ $leaveRequests->links() }}
                     </div>
                 @endif
             </div>

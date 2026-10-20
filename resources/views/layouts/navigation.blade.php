@@ -12,9 +12,30 @@
 
                 <!-- Navigation Links -->
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                    <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
+                    <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard', 'guru.dashboard')">
                         {{ __('Dashboard') }}
                     </x-nav-link>
+
+                    @if (Auth::user()->role?->role_name === 'guru')
+                        <x-nav-link :href="route('guru.schedules.index')" :active="request()->routeIs('guru.schedules.*')">
+                            {{ __('Jadwal Mengajar') }}
+                        </x-nav-link>
+                        <x-nav-link :href="route('guru.journals.index')" :active="request()->routeIs('guru.journals.*')">
+                            {{ __('Jurnal & Presensi') }}
+                        </x-nav-link>
+                    @elseif (in_array(Auth::user()->role?->role_name, ['wali_kelas', 'guru_bk']))
+                        <x-nav-link :href="route('kesiswaan.dashboard')" :active="request()->routeIs('kesiswaan.*')">
+                            {{ __('Verifikasi Perizinan') }}
+                        </x-nav-link>
+                    @elseif (in_array(Auth::user()->role?->role_name, ['siswa', 'orang_tua']))
+                        <x-nav-link :href="route('portal.dashboard')" :active="request()->routeIs('portal.*')">
+                            {{ __('Pengajuan Izin') }}
+                        </x-nav-link>
+                    @elseif (Auth::user()->role?->role_name === 'waka_kurikulum')
+                        <x-nav-link href="/admin">
+                            {{ __('Panel Waka (Filament)') }}
+                        </x-nav-link>
+                    @endif
                 </div>
             </div>
 
@@ -67,9 +88,30 @@
     <!-- Responsive Navigation Menu -->
     <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
         <div class="pt-2 pb-3 space-y-1">
-            <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
+            <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard', 'guru.dashboard')">
                 {{ __('Dashboard') }}
             </x-responsive-nav-link>
+
+            @if (Auth::user()->role?->role_name === 'guru')
+                <x-responsive-nav-link :href="route('guru.schedules.index')" :active="request()->routeIs('guru.schedules.*')">
+                    {{ __('Jadwal Mengajar') }}
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('guru.journals.index')" :active="request()->routeIs('guru.journals.*')">
+                    {{ __('Jurnal & Presensi') }}
+                </x-responsive-nav-link>
+            @elseif (in_array(Auth::user()->role?->role_name, ['wali_kelas', 'guru_bk']))
+                <x-responsive-nav-link :href="route('kesiswaan.dashboard')" :active="request()->routeIs('kesiswaan.*')">
+                    {{ __('Verifikasi Perizinan') }}
+                </x-responsive-nav-link>
+            @elseif (in_array(Auth::user()->role?->role_name, ['siswa', 'orang_tua']))
+                <x-responsive-nav-link :href="route('portal.dashboard')" :active="request()->routeIs('portal.*')">
+                    {{ __('Pengajuan Izin') }}
+                </x-responsive-nav-link>
+            @elseif (Auth::user()->role?->role_name === 'waka_kurikulum')
+                <x-responsive-nav-link href="/admin">
+                    {{ __('Panel Waka (Filament)') }}
+                </x-responsive-nav-link>
+            @endif
         </div>
 
             <!-- Responsive Settings Options -->

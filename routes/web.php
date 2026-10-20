@@ -35,9 +35,7 @@ Route::middleware(['auth', 'role:waka_kurikulum'])->prefix('waka')->name('waka.'
 
 // 2. Portal Guru
 Route::middleware(['auth', 'role:guru'])->prefix('guru')->name('guru.')->group(function () {
-    Route::get('/dashboard', function () {
-        return view('guru.dashboard');
-    })->name('dashboard');
+    Route::get('/dashboard', [\App\Http\Controllers\Guru\DashboardController::class, 'index'])->name('dashboard');
 
     Route::get('/schedules', [\App\Http\Controllers\Guru\ScheduleController::class, 'index'])->name('schedules.index');
 
@@ -46,24 +44,25 @@ Route::middleware(['auth', 'role:guru'])->prefix('guru')->name('guru.')->group(f
         Route::post('/schedules', [\App\Http\Controllers\Guru\ScheduleController::class, 'store'])->name('schedules.store');
         Route::delete('/schedules/{schedule}', [\App\Http\Controllers\Guru\ScheduleController::class, 'destroy'])->name('schedules.destroy');
     });
+
+    // Modul Jurnal Mengajar & Presensi (Fase 5)
+    Route::get('/journals', [\App\Http\Controllers\Guru\JournalController::class, 'index'])->name('journals.index');
+    Route::get('/schedules/{schedule}/journals/create', [\App\Http\Controllers\Guru\JournalController::class, 'create'])->name('journals.create');
+    Route::post('/schedules/{schedule}/journals', [\App\Http\Controllers\Guru\JournalController::class, 'store'])->name('journals.store');
+    Route::get('/journals/{journal}', [\App\Http\Controllers\Guru\JournalController::class, 'show'])->name('journals.show');
 });
 
-// Endpoint API Jadwal (Proteksi Lock Schedule untuk Postman/REST API)
-Route::middleware(['auth', 'role:guru', 'schedule.unlocked'])->prefix('api')->name('api.')->group(function () {
-    Route::post('/schedules', [\App\Http\Controllers\Guru\ScheduleController::class, 'store'])->name('schedules.store');
-    Route::delete('/schedules/{schedule}', [\App\Http\Controllers\Guru\ScheduleController::class, 'destroy'])->name('schedules.destroy');
-});
 
 // 3. Panel Tim Kesiswaan (Wali Kelas & Guru BK)
 Route::middleware(['auth', 'role:wali_kelas,guru_bk'])->prefix('kesiswaan')->name('kesiswaan.')->group(function () {
-    Route::get('/dashboard', [\App\Http\Controllers\Kesiswaan\KesiswaanDashboardController::class, 'index'])->name('dashboard');
-    Route::patch('/leaves/{leaveRequest}/verify', [\App\Http\Controllers\Kesiswaan\KesiswaanDashboardController::class, 'verify'])->name('leaves.verify');
+    Route::get('/dashboard', [\App\Http\Controllers\Kesiswaan\KesiswaanController::class, 'index'])->name('dashboard');
+    Route::patch('/leave-requests/{leaveRequest}/verify', [\App\Http\Controllers\Kesiswaan\KesiswaanController::class, 'verify'])->name('leave-requests.verify');
 });
 
 // 4. Portal Siswa & Orang Tua
 Route::middleware(['auth', 'role:siswa,orang_tua'])->prefix('portal')->name('portal.')->group(function () {
-    Route::get('/dashboard', [\App\Http\Controllers\Portal\LeaveRequestController::class, 'index'])->name('dashboard');
-    Route::post('/leaves', [\App\Http\Controllers\Portal\LeaveRequestController::class, 'store'])->name('leaves.store');
+    Route::get('/dashboard', [\App\Http\Controllers\Portal\PortalController::class, 'index'])->name('dashboard');
+    Route::post('/leave-requests', [\App\Http\Controllers\Portal\PortalController::class, 'storeLeave'])->name('leave-requests.store');
 });
 
 // Profil User Bawaan Breeze

@@ -26,7 +26,21 @@ class WakaDashboardController extends Controller
         $roles = Role::all();
         $users = User::with(['role', 'schoolClass'])->latest()->paginate(10);
 
-        return view('waka.dashboard', compact('config', 'classes', 'rooms', 'roles', 'users'));
+        $today = now()->toDateString();
+        $currentDayName = \App\Support\IndonesianDay::now();
+        $cutoffTime = now()->subMinutes(30)->format('H:i:s');
+
+        $overdueSchedules = \App\Models\Schedule::with(['teacher', 'schoolClass', 'room'])
+            ->where('cycle_type', $config->active_cycle)
+            ->where('day_of_week', $currentDayName)
+            ->where('end_time', '<=', $cutoffTime)
+            ->whereDoesntHave('journals', function ($q) use ($today) {
+                $q->where('date', $today);
+            })
+            ->orderBy('end_time')
+            ->get();
+
+        return view('waka.dashboard', compact('config', 'classes', 'rooms', 'roles', 'users', 'overdueSchedules'));
     }
 
     /**
