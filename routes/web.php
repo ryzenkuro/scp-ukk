@@ -14,11 +14,11 @@ Route::get('/dashboard', function () {
     $role = auth()->user()->role?->role_name;
 
     return match ($role) {
-        'waka_kurikulum'        => redirect('/admin'),
-        'guru'                  => redirect()->route('guru.dashboard'),
-        'wali_kelas', 'guru_bk' => redirect()->route('kesiswaan.dashboard'),
-        'siswa', 'orang_tua'    => redirect()->route('portal.dashboard'),
-        default                 => abort(403, 'Peran pengguna tidak dikenali.'),
+        'super_admin', 'waka_kurikulum' => redirect('/admin'),
+        'guru'                          => redirect()->route('guru.dashboard'),
+        'wali_kelas', 'guru_bk'         => redirect()->route('kesiswaan.dashboard'),
+        'siswa', 'orang_tua'            => redirect()->route('portal.dashboard'),
+        default                         => abort(403, 'Peran pengguna tidak dikenali.'),
     };
 })->middleware(['auth'])->name('dashboard');
 

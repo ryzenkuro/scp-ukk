@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
     {
         // 1. Roles
         $roles = [
+            'super_admin' => Role::firstOrCreate(['role_name' => 'super_admin']),
             'waka_kurikulum' => Role::firstOrCreate(['role_name' => 'waka_kurikulum']),
             'guru' => Role::firstOrCreate(['role_name' => 'guru']),
             'wali_kelas' => Role::firstOrCreate(['role_name' => 'wali_kelas']),
@@ -37,6 +38,12 @@ class DatabaseSeeder extends Seeder
         $defaultPassword = Hash::make('password');
 
         // 4. Users Master Accounts
+        $muzan = User::firstOrCreate(['username' => 'Muzan'], [
+            'role_id' => $roles['super_admin']->id,
+            'fullname' => 'Super Administrator (Muzan)',
+            'password' => $defaultPassword,
+        ]);
+
         $waka = User::firstOrCreate(['username' => 'waka'], [
             'role_id' => $roles['waka_kurikulum']->id,
             'fullname' => 'Drs. H. Hartono, M.Pd (Waka Kurikulum)',
@@ -55,14 +62,21 @@ class DatabaseSeeder extends Seeder
             'password' => $defaultPassword,
         ]);
 
-        $walikelas = User::firstOrCreate(['username' => 'walikelas'], [
+        $walikelas1 = User::firstOrCreate(['username' => 'walikelas1'], [
             'role_id' => $roles['wali_kelas']->id,
             'class_id' => $class12Rpl1->id,
             'fullname' => 'Rahmat Hidayat, S.Pd (Wali XII RPL 1)',
             'password' => $defaultPassword,
         ]);
 
-        // Alias walikelas1 for rubric compatibility
+        // Alias walikelas untuk kompatibilitas
+        User::firstOrCreate(['username' => 'walikelas'], [
+            'role_id' => $roles['wali_kelas']->id,
+            'class_id' => $class12Rpl1->id,
+            'fullname' => 'Rahmat Hidayat, S.Pd (Wali XII RPL 1)',
+            'password' => $defaultPassword,
+        ]);
+
         $guruBk = User::firstOrCreate(['username' => 'gurubk'], [
             'role_id' => $roles['guru_bk']->id,
             'fullname' => 'Nurul Fadilah, S.Psi (Guru BK)',

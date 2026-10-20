@@ -26,7 +26,7 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
-            ->brandName('SCP - Waka Kurikulum')
+            ->brandName('SCP - Panel Admin')
             ->colors([
                 'primary' => Color::Indigo,
             ])

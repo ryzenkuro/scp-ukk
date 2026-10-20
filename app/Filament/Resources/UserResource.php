@@ -91,6 +91,7 @@ class UserResource extends Resource
                     ->label('Peran (Role)')
                     ->badge()
                     ->colors([
+                        'danger' => 'super_admin',
                         'primary' => 'waka_kurikulum',
                         'info' => 'guru',
                         'warning' => 'wali_kelas',
