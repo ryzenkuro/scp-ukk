@@ -48,17 +48,16 @@ class OverdueJournalAlertTest extends TestCase
             'subject' => 'Sistem Komputer Terapan',
         ]);
 
-        // 2. Guru membuka dashboard -> Wajib Muncul Banner Peringatan Keterlambatan
+        // 2. Guru membuka dashboard -> Wajib Muncul Data Peringatan Keterlambatan
         $responseGuru = $this->actingAs($guru1)->get(route('guru.dashboard'));
         $responseGuru->assertStatus(200);
-        $responseGuru->assertSee('Peringatan Keterlambatan Pengisian Jurnal');
+        $responseGuru->assertSee('&quot;overdueSchedules&quot;', false);
         $responseGuru->assertSee('Sistem Komputer Terapan');
-        $responseGuru->assertSee('Harap segera isi jurnal!');
 
         // 3. Waka Kurikulum membuka dashboard -> Terlihat di Rekap Keterlambatan
         $responseWaka = $this->actingAs($waka)->get(route('waka.dashboard'));
         $responseWaka->assertStatus(200);
-        $responseWaka->assertSee('Rekap Keterlambatan Jurnal');
+        $responseWaka->assertSee('&quot;overdueSchedules&quot;', false);
         $responseWaka->assertSee('Sistem Komputer Terapan');
 
         // 4. Guru mengisi jurnal untuk jadwal tersebut
@@ -73,9 +72,9 @@ class OverdueJournalAlertTest extends TestCase
         $responseGuruAfter = $this->actingAs($guru1)->get(route('guru.dashboard'));
         $responseGuruAfter->assertStatus(200);
         
-        // Verifikasi bahwa jadwal 'Sistem Komputer Terapan' sekarang berstatus 'Jurnal Terisi'
+        // Verifikasi bahwa jadwal 'Sistem Komputer Terapan' sekarang memiliki entri journal
         $responseGuruAfter->assertSee('Sistem Komputer Terapan');
-        $responseGuruAfter->assertSee('Jurnal Terisi');
+        $responseGuruAfter->assertSee('&quot;journals&quot;:[{&quot;id&quot;:', false);
 
         // Bersihkan entri dummy setelah pengujian
         Journal::where('schedule_id', $schedule->id)->delete();

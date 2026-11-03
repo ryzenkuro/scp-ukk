@@ -23,6 +23,8 @@ class User extends Authenticatable implements FilamentUser, HasName
         'username',
         'password',
         'fullname',
+        'nisn_nip',
+        'birth_date',
     ];
 
     protected $hidden = [
@@ -34,6 +36,7 @@ class User extends Authenticatable implements FilamentUser, HasName
     {
         return [
             'password' => 'hashed',
+            'birth_date' => 'date',
         ];
     }
 
@@ -69,7 +72,7 @@ class User extends Authenticatable implements FilamentUser, HasName
 
     public function canAccessPanel(Panel $panel): bool
     {
-        return in_array($this->role?->role_name, ['waka_kurikulum', 'super_admin']);
+        return $this->role?->role_name === 'waka_kurikulum';
     }
 
     public function getFilamentName(): string

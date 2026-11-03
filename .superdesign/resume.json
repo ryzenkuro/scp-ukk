@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "targets": {
+    "/login": {
+      "targetKind": "existing-ui",
+      "projectId": "e2ec4a73-2350-41a5-a625-759dcfaeb385",
+      "baselineDraftId": "d8354596-24e0-4582-b2ff-2eab15f87b6d",
+      "activeDraftId": "d8354596-24e0-4582-b2ff-2eab15f87b6d",
+      "designSystemPath": ".superdesign/design-system.md",
+      "contextFiles": [
+        ".superdesign/design-system.md",
+        "resources/views/layouts/guest.blade.php",
+        "resources/views/auth/login.blade.php",
+        "resources/views/components/application-logo.blade.php",
+        "resources/views/components/input-label.blade.php",
+        "resources/views/components/text-input.blade.php",
+        "resources/views/components/input-error.blade.php",
+        "resources/views/components/primary-button.blade.php",
+        "resources/views/components/auth-session-status.blade.php",
+        "tailwind.config.js"
+      ],
+      "fingerprints": {
+        ".superdesign/design-system.md": "06bc123929a2e837411196cbee625c2e01d5a5beafc11d8b4c8c783ed7a425d7",
+        "resources/views/layouts/guest.blade.php": "59520d16ba2824c0a7586c5792dd57501110663ad233bba2a0e62ab4e500523a",
+        "resources/views/auth/login.blade.php": "4349cddb0ba331a5fdf065227281a60c35247f7873cc02cec839bf8f44483bf5",
+        "resources/views/components/application-logo.blade.php": "ad0b1c3fa2a891293a2ae718b41a10879d53e88d26f892a20db2774c6661fc60",
+        "resources/views/components/input-label.blade.php": "ae90330137ff955f0717de778bd134622926f67807339dda043d27ed2c42da69",
+        "resources/views/components/text-input.blade.php": "c0609f835d26f47c2c6235b9f845a19fbc29f288b95e4b572c8d0feb5710ee97",
+        "resources/views/components/input-error.blade.php": "69bf80900ce564877e82ca3736a2336549a92afb8650a065be9050a94a599733",
+        "resources/views/components/primary-button.blade.php": "48d3a3b0d0e12960450b6ac3c15d1de54f73e67f2af10e92c5e2b1d5a3a54af5",
+        "resources/views/components/auth-session-status.blade.php": "380b89ba08f51ff4c48c0800a841184fd7d9eebab702803ceb1d2bffb58e5ba8",
+        "tailwind.config.js": "c57c50e5816a545cbc8b412239f01fb7df1a212abec635eb000c06b6e66688fa"
+      },
+      "drafts": {
+        "d8354596-24e0-4582-b2ff-2eab15f87b6d": {
+          "title": "Laravel Breeze Login",
+          "visualDirection": "current-ui-baseline (pixel-perfect reproduction, model gemini-3.1-pro)",
+          "currentVersion": 1
+        }
+      },
+      "updatedAt": "2026-10-22T00:58:54.310671+00:00"
+    },
+    "/guru/dashboard": {
+      "targetKind": "existing-ui",
+      "projectId": "e2ec4a73-2350-41a5-a625-759dcfaeb385",
+      "baselineDraftId": "dc9bf7ef-1ced-4012-ba20-2845c5eaa297",
+      "activeDraftId": "2e6fddc0-7a87-4384-bd3c-bcecae99832c",
+      "designSystemPath": ".superdesign/design-system.md",
+      "contextFiles": [
+        ".superdesign/design-system.md",
+        "resources/views/guru/dashboard.blade.php",
+        "resources/views/layouts/navigation.blade.php",
+        "tailwind.config.js"
+      ],
+      "fingerprints": {
+        ".superdesign/design-system.md": "06bc123929a2e837411196cbee625c2e01d5a5beafc11d8b4c8c783ed7a425d7",
+        "resources/views/guru/dashboard.blade.php": "2d33450473603e004dff72eddf9fe8f1604b02213d511ce86aa97748144ef6bf",
+        "resources/views/layouts/navigation.blade.php": "890730a633d382bdf831cd7556771edf097a0b21d9fce75fec95f5eee5d27d8a",
+        "tailwind.config.js": "c57c50e5816a545cbc8b412239f01fb7df1a212abec635eb000c06b6e66688fa"
+      },
+      "drafts": {
+        "dc9bf7ef-1ced-4012-ba20-2845c5eaa297": {
+          "title": "Guru Dashboard Desktop",
+          "visualDirection": "current-ui-baseline (pixel-perfect repro, gemini-3.1-pro)",
+          "currentVersion": 1
+        },
+        "2e6fddc0-7a87-4384-bd3c-bcecae99832c": {
+          "title": "Portal Guru Modern 2026",
+          "visualDirection": "new-DS redesign: indigo #4F46E5, Figtree, lucide, 14px floor, bottom-tab mobile (gpt-5.6-sol, branch of baseline)",
+          "parentDraftId": "dc9bf7ef-1ced-4012-ba20-2845c5eaa297",
+          "currentVersion": 1
+        }
+      },
+      "updatedAt": "2026-10-22T00:58:54.310671+00:00"
+    }
+  }
+}

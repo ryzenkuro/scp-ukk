@@ -21,17 +21,27 @@ class AuthController extends Controller
             'device_name' => 'nullable|string|max:100',
         ]);
 
-        $user = User::with('role')->where('username', $validated['username'])->first();
+        $user = User::with(['role', 'schoolClass'])->where('username', $validated['username'])->first();
 
         if (! $user || ! Hash::check($validated['password'], $user->password)) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Username atau password tidak valid.',
+                'message' => 'Username atau kata sandi tidak sesuai.',
             ], 401);
         }
 
+        $roleLabels = [
+            'waka_kurikulum' => 'Waka Kurikulum',
+            'guru'           => 'Guru Pengajar',
+            'wali_kelas'     => 'Wali Kelas',
+            'guru_bk'        => 'Guru Bimbingan Konseling (BK)',
+            'siswa'          => 'Siswa',
+            'orang_tua'      => 'Orang Tua / Wali Siswa',
+        ];
+        $roleName = $user->role?->role_name;
+
         // Buat token Sanctum
-        $token = $user->createToken($validated['device_name'] ?? 'postman-client')->plainTextToken;
+        $token = $user->createToken($validated['device_name'] ?? 'flutter-mobile')->plainTextToken;
 
         return response()->json([
             'status' => 'success',
@@ -39,11 +49,13 @@ class AuthController extends Controller
             'token' => $token,
             'token_type' => 'Bearer',
             'user' => [
-                'id' => $user->id,
-                'username' => $user->username,
-                'fullname' => $user->fullname,
-                'role' => $user->role?->role_name,
-                'class_id' => $user->class_id,
+                'id'         => $user->id,
+                'username'   => $user->username,
+                'fullname'   => $user->fullname,
+                'role'       => $roleName,
+                'role_label' => $roleLabels[$roleName] ?? ucfirst(str_replace('_', ' ', $roleName)),
+                'class_id'   => $user->class_id,
+                'class_name' => $user->schoolClass?->class_name,
             ],
         ]);
     }
@@ -54,15 +66,25 @@ class AuthController extends Controller
     public function me(Request $request): JsonResponse
     {
         $user = $request->user()->load(['role', 'schoolClass']);
+        $roleLabels = [
+            'waka_kurikulum' => 'Waka Kurikulum',
+            'guru'           => 'Guru Pengajar',
+            'wali_kelas'     => 'Wali Kelas',
+            'guru_bk'        => 'Guru Bimbingan Konseling (BK)',
+            'siswa'          => 'Siswa',
+            'orang_tua'      => 'Orang Tua / Wali Siswa',
+        ];
+        $roleName = $user->role?->role_name;
 
         return response()->json([
             'status' => 'success',
             'user' => [
-                'id' => $user->id,
-                'username' => $user->username,
-                'fullname' => $user->fullname,
-                'role' => $user->role?->role_name,
-                'class_id' => $user->class_id,
+                'id'         => $user->id,
+                'username'   => $user->username,
+                'fullname'   => $user->fullname,
+                'role'       => $roleName,
+                'role_label' => $roleLabels[$roleName] ?? ucfirst(str_replace('_', ' ', $roleName)),
+                'class_id'   => $user->class_id,
                 'class_name' => $user->schoolClass?->class_name,
             ],
         ]);

@@ -7,6 +7,7 @@ use App\Models\Room;
 use App\Models\Schedule;
 use App\Models\SchoolClass;
 use App\Models\SystemConfiguration;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -14,7 +15,7 @@ use Illuminate\View\View;
 class ScheduleController extends Controller
 {
     /**
-     * Tampilkan jadwal mengajar guru dan jadwal global sekolah
+     * Tampilkan jadwal mengajar guru dan jadwal global sekolah (Web View)
      */
     public function index(Request $request): View
     {
@@ -50,9 +51,34 @@ class ScheduleController extends Controller
     }
 
     /**
+     * Endpoint REST API: Dapatkan jadwal mengajar guru pada siklus aktif/pilihan (KF76-KF80)
+     */
+    public function apiIndex(Request $request): JsonResponse
+    {
+        $teacher = auth()->user();
+        $config = SystemConfiguration::current();
+        $selectedCycle = $request->query('cycle', $config->active_cycle);
+
+        $schedules = Schedule::with(['schoolClass', 'room'])
+            ->where('teacher_id', $teacher->id)
+            ->where('cycle_type', $selectedCycle)
+            ->orderByRaw("FIELD(day_of_week, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu')")
+            ->orderBy('start_time')
+            ->get();
+
+        return response()->json([
+            'status' => 'success',
+            'active_cycle' => $config->active_cycle,
+            'selected_cycle' => $selectedCycle,
+            'is_schedule_locked' => (bool) $config->is_schedule_locked,
+            'data' => $schedules,
+        ], 200);
+    }
+
+    /**
      * Simpan jadwal baru mandiri dengan algoritma Anti-Bentrok
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
             'class_id' => 'required|exists:classes,id',
@@ -72,12 +98,27 @@ class ScheduleController extends Controller
         // 🔍 Logika 1: Algoritma Pencegahan Bentrok Waktu (Conflict Prevention)
         $conflictMessage = $this->checkScheduleConflict($data);
         if ($conflictMessage) {
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => $conflictMessage,
+                ], 422);
+            }
+
             return back()->withInput()->withErrors([
                 'conflict' => $conflictMessage,
             ]);
         }
 
-        Schedule::create($data);
+        $schedule = Schedule::create($data);
+
+        if ($request->expectsJson() || $request->is('api/*')) {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Jadwal mengajar berhasil disimpan!',
+                'data' => $schedule->load(['schoolClass', 'room']),
+            ], 201);
+        }
 
         return back()->with('success', 'Jadwal mengajar berhasil disimpan!');
     }
@@ -85,13 +126,27 @@ class ScheduleController extends Controller
     /**
      * Hapus jadwal mengajar
      */
-    public function destroy(Schedule $schedule): RedirectResponse
+    public function destroy(Request $request, Schedule $schedule): RedirectResponse|JsonResponse
     {
         if ($schedule->teacher_id !== auth()->id()) {
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Anda tidak berhak menghapus jadwal guru lain.',
+                ], 403);
+            }
+
             abort(403, 'Anda tidak berhak menghapus jadwal guru lain.');
         }
 
         $schedule->delete();
+
+        if ($request->expectsJson() || $request->is('api/*')) {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Jadwal berhasil dihapus!',
+            ], 200);
+        }
 
         return back()->with('success', 'Jadwal berhasil dihapus!');
     }

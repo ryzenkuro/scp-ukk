@@ -69,8 +69,45 @@ class SanctumAuthApiTest extends TestCase
         $response->assertStatus(401)
             ->assertJson([
                 'status' => 'error',
-                'message' => 'Username atau password tidak valid.',
+                'message' => 'Username atau kata sandi tidak sesuai.',
             ]);
+    }
+
+    public function test_api_forgot_password_verify_and_reset_flow(): void
+    {
+        // 1. Verifikasi data akademik via API (Siswa1)
+        $verifyRes = $this->postJson(route('api.forgot-password.verify'), [
+            'username'   => 'siswa1',
+            'role_name'  => 'siswa',
+            'nisn_nip'   => '0061234567',
+            'birth_date' => '2008-05-14',
+        ]);
+
+        $verifyRes->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'username' => 'siswa1',
+            ]);
+
+        $token = $verifyRes->json('token');
+        $this->assertNotEmpty($token);
+
+        // 2. Reset kata sandi via API dengan token dari Cache
+        $resetRes = $this->postJson(route('api.forgot-password.reset'), [
+            'username'              => 'siswa1',
+            'token'                 => $token,
+            'password'              => 'NewSiswaPass123!',
+            'password_confirmation' => 'NewSiswaPass123!',
+        ]);
+
+        $resetRes->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+            ]);
+
+        // Kembalikan ke password default 'password'
+        $user = User::where('username', 'siswa1')->first();
+        $user->update(['password' => \Illuminate\Support\Facades\Hash::make('password')]);
     }
 
     public function test_public_self_registration_is_disabled_and_redirects_to_login(): void

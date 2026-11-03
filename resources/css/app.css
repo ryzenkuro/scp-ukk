@@ -1,3 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+    :root {
+        --background: #F8FAFC;
+        --foreground: #0F172A;
+        --card: #FFFFFF;
+        --card-foreground: #0F172A;
+        --border: #E2E8F0;
+        --input: #E2E8F0;
+        --primary: #4F46E5;
+        --primary-foreground: #FFFFFF;
+        --muted: #F1F5F9;
+        --muted-foreground: #64748B;
+        --radius: 0.75rem;
+    }
+
+    body {
+        font-family: 'Figtree', system-ui, -apple-system, sans-serif;
+        background-color: #F8FAFC;
+        color: #0F172A;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    code, kbd, samp, pre {
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+}
+
+/* Custom quiet scrollbar inspired by Vercel & shadcn */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: #CBD5E1;
+    border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #94A3B8;
+}

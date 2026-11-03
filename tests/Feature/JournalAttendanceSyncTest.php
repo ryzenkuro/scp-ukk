@@ -72,7 +72,7 @@ class JournalAttendanceSyncTest extends TestCase
 
         $responseCreate = $this->actingAs($guru1)->get(route('guru.journals.create', $schedule->id));
         $responseCreate->assertStatus(200);
-        $responseCreate->assertSee('Izin/Sakit Terverifikasi');
+        $responseCreate->assertSee('&quot;approvedLeaves&quot;', false);
 
         // 3. Simpan Jurnal dengan input attendances (Guru mencoba memilih Hadir untuk siswa1)
         $fakePhoto = UploadedFile::fake()->image('kegiatan_kelas.jpg', 600, 400);
@@ -127,5 +127,98 @@ class JournalAttendanceSyncTest extends TestCase
         $guru2 = User::where('username', 'guru2')->first();
         $responseUnauthorized = $this->actingAs($guru2)->get(route('guru.journals.show', $journal->id));
         $responseUnauthorized->assertStatus(403);
+    }
+
+    /**
+     * Test Arah 2: Retroactive Sync Presensi (BR-004)
+     * Ketika guru sudah mengisi jurnal dan siswa tercatat 'Alpha',
+     * lalu surat izin disetujui kemudian oleh Wali Kelas/BK,
+     * status presensi otomatis terkoreksi menjadi Sakit/Izin.
+     */
+    public function test_retroactive_attendance_sync_when_leave_is_approved_after_journal(): void
+    {
+        Storage::fake('public');
+
+        $guru1 = User::where('username', 'guru1')->first();
+        $siswa1 = User::where('username', 'siswa1')->first();
+        $walikelas = User::where('username', 'walikelas')->first();
+        $class1 = SchoolClass::where('class_name', 'XII RPL 1')->first();
+        $room = Room::first();
+
+        $schedule = Schedule::firstOrCreate([
+            'teacher_id' => $guru1->id,
+            'class_id' => $class1->id,
+            'room_id' => $room->id,
+            'cycle_type' => 'Putaran 1',
+            'day_of_week' => 'Senin',
+            'start_time' => '10:00:00',
+            'end_time' => '12:15:00',
+        ], [
+            'subject' => 'Basis Data Lanjut',
+        ]);
+
+        $targetDate = now()->addDays(5)->toDateString();
+
+        // 1. Bersihkan data pengujian tanggal target
+        LeaveRequest::where('student_id', $siswa1->id)->where('start_date', '<=', $targetDate)->where('end_date', '>=', $targetDate)->delete();
+        $oldJournal = Journal::where('schedule_id', $schedule->id)->where('date', $targetDate)->first();
+        if ($oldJournal) {
+            Attendance::where('journal_id', $oldJournal->id)->delete();
+            $oldJournal->delete();
+        }
+
+        // 2. Guru mencatat jurnal dan siswa1 tercatat Alpha (karena belum ada izin disetujui)
+        $journal = Journal::create([
+            'schedule_id' => $schedule->id,
+            'date' => $targetDate,
+            'topic_description' => 'Normalisasi Basis Data Bentuk Ketiga (3NF)',
+            'photo_path' => 'journals_photos/sample.jpg',
+        ]);
+
+        $attendance = Attendance::create([
+            'journal_id' => $journal->id,
+            'student_id' => $siswa1->id,
+            'status' => 'Alpha',
+            'date' => $targetDate,
+        ]);
+
+        $this->assertDatabaseHas('attendances', [
+            'id' => $attendance->id,
+            'student_id' => $siswa1->id,
+            'status' => 'Alpha',
+            'date' => $targetDate,
+        ]);
+
+        // 3. Siswa mengajukan izin Sakit pada targetDate
+        $leave = LeaveRequest::create([
+            'student_id' => $siswa1->id,
+            'applicant_id' => $siswa1->id,
+            'leave_type' => 'Sakit',
+            'start_date' => $targetDate,
+            'end_date' => $targetDate,
+            'reason' => 'Sakit tifus rawat inap',
+            'document_path' => 'leave_documents/surat_rs.pdf',
+            'status_approval' => 'Pending',
+        ]);
+
+        // 4. Wali kelas menyetujui izin siswa1
+        $responseApprove = $this->actingAs($walikelas)->patch(route('kesiswaan.leave-requests.verify', $leave->id), [
+            'status' => 'Approved',
+        ]);
+
+        $responseApprove->assertRedirect();
+        $this->assertDatabaseHas('leave_requests', [
+            'id' => $leave->id,
+            'status_approval' => 'Approved',
+            'verified_by' => $walikelas->id,
+        ]);
+
+        // 5. Verifikasi bahwa status presensi yang tadinya Alpha telah otomatis terkoreksi menjadi 'Sakit' (Retroactive Sync BR-004)
+        $this->assertDatabaseHas('attendances', [
+            'id' => $attendance->id,
+            'student_id' => $siswa1->id,
+            'status' => 'Sakit',
+            'date' => $targetDate,
+        ]);
     }
 }

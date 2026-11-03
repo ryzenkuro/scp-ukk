@@ -9,6 +9,7 @@ use App\Models\LeaveRequest;
 use App\Models\Schedule;
 use App\Models\SystemConfiguration;
 use App\Models\User;
+use App\Services\AttendanceService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -99,7 +100,7 @@ class JournalController extends Controller
     /**
      * Simpan Jurnal Mengajar & Auto-Sync Presensi secara Transaksional
      */
-    public function store(Request $request, Schedule $schedule): RedirectResponse
+    public function store(Request $request, Schedule $schedule, AttendanceService $attendanceService): RedirectResponse
     {
         if ($schedule->teacher_id !== auth()->id()) {
             abort(403, 'Anda tidak berhak mengisi jurnal untuk jadwal guru lain.');
@@ -133,7 +134,7 @@ class JournalController extends Controller
         }
 
         // Jalankan Database Transaction untuk menjaga konsistensi journals dan attendances
-        DB::transaction(function () use ($request, $schedule, $today, &$journal) {
+        DB::transaction(function () use ($request, $schedule, $today, $attendanceService, &$journal) {
             // 1. Simpan foto bukti ke storage public disk
             $photoPath = $request->file('photo')->store('journals_photos', 'public');
 
@@ -145,32 +146,8 @@ class JournalController extends Controller
                 'photo_path' => $photoPath,
             ]);
 
-            // 3. Ambil data izin terverifikasi untuk siswa kelas ini hari ini
-            $studentIds = array_keys($request->attendances);
-            $approvedLeaves = LeaveRequest::whereIn('student_id', $studentIds)
-                ->where('status_approval', 'Approved')
-                ->where('start_date', '<=', $today)
-                ->where('end_date', '>=', $today)
-                ->get()
-                ->keyBy('student_id');
-
-            // 4. Sinkronisasi Presensi ke Tabel Attendances
-            foreach ($request->attendances as $studentId => $selectedStatus) {
-                // Aturan Bisnis UKK: Jika ada izin yang disetujui, paksakan status Sakit/Izin (jangan izinkan Alpha)
-                if (isset($approvedLeaves[$studentId])) {
-                    $leave = $approvedLeaves[$studentId];
-                    $finalStatus = str_contains(strtolower($leave->reason), 'sakit') ? 'Sakit' : 'Izin';
-                } else {
-                    $finalStatus = $selectedStatus;
-                }
-
-                Attendance::create([
-                    'journal_id' => $journal->id,
-                    'student_id' => $studentId,
-                    'status' => $finalStatus,
-                    'date' => $today,
-                ]);
-            }
+            // 3. Rekam dan Auto-Sync Presensi via AttendanceService (Arah 1: BR-004)
+            $attendanceService->recordAttendance($journal, $request->attendances, $today);
         });
 
         return redirect()->route('guru.journals.show', $journal->id)

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Guru;
 use App\Http\Controllers\Controller;
 use App\Models\Schedule;
 use App\Models\SystemConfiguration;
+use App\Services\JournalReminderService;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -24,18 +25,8 @@ class DashboardController extends Controller
         // ⏱️ Batas waktu keterlambatan: waktu saat ini dikurangi 30 menit
         $cutoffTime = now()->subMinutes(30)->format('H:i:s');
 
-        // 🔍 Cari jadwal hari ini pada siklus aktif yang jam selesainya telah lewat >30 menit
-        // DAN belum memiliki entri jurnal untuk tanggal hari ini
-        $overdueSchedules = Schedule::with(['schoolClass', 'room'])
-            ->where('teacher_id', $teacher->id)
-            ->where('cycle_type', $config->active_cycle)
-            ->where('day_of_week', $currentDayName)
-            ->where('end_time', '<=', $cutoffTime)
-            ->whereDoesntHave('journals', function ($q) use ($today) {
-                $q->where('date', $today);
-            })
-            ->orderBy('end_time')
-            ->get();
+        // 🔍 Deteksi jadwal terlambat diisi jurnal via JournalReminderService (BR-005, KF64-KF68)
+        $overdueSchedules = JournalReminderService::getOverdueSchedules($teacher->id);
 
         // Total seluruh jadwal guru pada siklus aktif
         $mySchedulesCount = Schedule::where('teacher_id', $teacher->id)

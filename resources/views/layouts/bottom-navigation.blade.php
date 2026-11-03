@@ -5,7 +5,7 @@
 
     <!-- Sticky Bottom Navigation Bar Khusus Tampilan Smartphone (Mobile-First) -->
     <nav class="sm:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-xl px-2 py-1.5 transition-all">
-        <div class="grid {{ $userRole === 'guru' ? 'grid-cols-4' : 'grid-cols-3' }} items-center text-center">
+        <div class="grid {{ in_array($userRole, ['guru', 'wali_kelas', 'guru_bk']) ? 'grid-cols-4' : 'grid-cols-3' }} items-center text-center">
 
             @if ($userRole === 'guru')
                 <!-- Guru: Beranda -->
@@ -49,6 +49,13 @@
                    class="flex flex-col items-center justify-center py-1 rounded-xl transition {{ request()->routeIs('kesiswaan.*') ? 'text-indigo-600 font-bold' : 'text-gray-500 hover:text-gray-800' }}">
                     <span class="text-xl">📋</span>
                     <span class="text-[10px] mt-0.5">Verifikasi</span>
+                </a>
+
+                <!-- Kesiswaan: Jurnal Mengajar -->
+                <a href="{{ route('guru.journals.index') }}" 
+                   class="flex flex-col items-center justify-center py-1 rounded-xl transition {{ request()->routeIs('guru.journals.*') ? 'text-indigo-600 font-bold' : 'text-gray-500 hover:text-gray-800' }}">
+                    <span class="text-xl">📝</span>
+                    <span class="text-[10px] mt-0.5">Jurnal</span>
                 </a>
 
                 <!-- Kesiswaan: Profil -->

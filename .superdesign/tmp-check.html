@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Guru - School Class Progress</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link rel="preconnect" href="https://fonts.bunny.net">
+    <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700,800&amp;display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Figtree', 'sans-serif'] },
+                    colors: {
+                        canvas: '#F8FAFC',
+                        primary: '#4F46E5',
+                        'primary-hover': '#4338CA'
+                    },
+                    boxShadow: {
+                        sm: '0 1px 2px rgba(15,23,42,.06)'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body>
+    <div class="min-h-screen bg-[#F8FAFC] font-sans text-[#0F172A] antialiased">
+        <nav class="h-16 border-b border-[#E2E8F0] bg-white" aria-label="Navigasi utama">
+            <div class="mx-auto flex h-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+                <div class="flex h-full items-center gap-10">
+                    <a href="#" id="nav-brand-link" class="flex items-center gap-3">
+                        <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-[#4F46E5] text-white">
+                            <iconify-icon icon="lucide:graduation-cap" class="text-2xl"></iconify-icon>
+                        </span>
+                        <span class="leading-tight">
+                            <span class="block text-base font-bold tracking-tight text-[#0F172A]">School Class Progress</span>
+                            <span class="block text-xs font-medium text-[#94A3B8]">Sistem Manajemen Pembelajaran</span>
+                        </span>
+                    </a>
+
+                    <div class="hidden h-full items-center gap-8 md:flex">
+                        <a href="#" id="nav-dashboard-link" class="flex h-full items-center border-b-2 border-[#4F46E5] text-sm font-semibold text-[#0F172A]">Dashboard</a>
+                        <a href="#" id="nav-schedule-link" class="flex h-full items-center border-b-2 border-transparent text-sm font-medium text-[#475569] hover:text-[#0F172A]">Jadwal Mengajar</a>
+                        <a href="#" id="nav-journal-link" class="flex h-full items-center border-b-2 border-transparent text-sm font-medium text-[#475569] hover:text-[#0F172A]">Jurnal &amp; Presensi</a>
+                        <a href="#" id="nav-report-link" class="flex h-full items-center border-b-2 border-transparent text-sm font-medium text-[#475569] hover:text-[#0F172A]">Rekap Presensi</a>
+                    </div>
+                </div>
+
+                <button type="button" class="hidden h-10 items-center gap-3 rounded-lg px-2 text-sm font-medium text-[#475569] md:flex">
+                    <span class="flex h-9 w-9 items-center justify-center rounded-full bg-[#F1F5F9] font-semibold text-[#475569]">BS</span>
+                    <span>Budi Santoso</span>
+                    <iconify-icon icon="lucide:chevron-down" class="text-base text-[#94A3B8]"></iconify-icon>
+                </button>
+            </div>
+        </nav>
+
+        <main class="relative mx-auto max-w-7xl px-4 pb-10 pt-6 sm:px-6 lg:px-8">
+            <header class="mb-6 flex items-center justify-between">
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight text-[#0F172A]">Portal Guru - School Class Progress</h1>
+                    <p class="mt-1 text-sm text-[#475569]">Sistem Manajemen Pembelajaran Blok Teaching Factory</p>
+                </div>
+                <span class="inline-flex items-center rounded-full bg-[#EEF2FF] px-3 py-1.5 text-sm font-semibold text-[#4F46E5]">Guru Mata Pelajaran</span>
+            </header>
+
+            <div class="space-y-6">
+                <section class="rounded-xl border border-[#FECACA] border-l-4 border-l-[#DC2626] bg-[#FEF2F2] p-5 shadow-sm">
+                    <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div class="flex min-w-0 items-start gap-3">
+                            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#FEE2E2] text-[#DC2626]">
+                                <iconify-icon icon="lucide:triangle-alert" class="text-xl"></iconify-icon>
+                            </span>
+                            <div>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <h2 class="text-[15px] font-semibold text-[#991B1B]">Peringatan Keterlambatan Pengisian Jurnal</h2>
+                                    <span class="rounded-full border border-[#FECACA] bg-white px-2.5 py-1 text-xs font-semibold text-[#991B1B]">2 Sesi Terlambat (&gt;30 Menit)</span>
+                                </div>
+                                <div class="mt-2 space-y-1 text-sm leading-5 text-[#7F1D1D]">
+                                    <p>Anda belum mengisi jurnal untuk mata pelajaran <strong class="font-semibold">Prakarya dan Kewirausahaan</strong> di kelas <strong class="font-semibold">XII TKR 2</strong> (Berakhir jam <strong class="font-mono font-semibold">10:20</strong>). Harap segera isi jurnal!</p>
+                                    <p>Anda belum mengisi jurnal untuk mata pelajaran <strong class="font-semibold">Prakarya dan Kewirausahaan</strong> di kelas <strong class="font-semibold">XII TKR 2</strong> (Berakhir jam <strong class="font-mono font-semibold">10:20</strong>). Harap segera isi jurnal!</p>
+                                </div>
+                            </div>
+                        </div>
+                        <a href="#" id="alert-journal-link" class="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-[#DC2626] px-4 text-sm font-semibold text-white hover:bg-[#991B1B]">
+                            Buka Daftar Sesi Jurnal
+                            <iconify-icon icon="lucide:arrow-right" class="text-base"></iconify-icon>
+                        </a>
+                    </div>
+                </section>
+
+                <section class="flex flex-col gap-5 rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+                    <div class="flex items-center gap-4">
+                        <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#EEF2FF] text-base font-bold text-[#4F46E5]">BS</span>
+                        <div>
+                            <h2 class="text-xl font-bold tracking-tight text-[#0F172A]">Selamat Datang, Budi Santoso!</h2>
+                            <div class="mt-2 flex flex-wrap items-center gap-2 text-sm text-[#475569]">
+                                <span>Siklus Aktif:</span>
+                                <span class="rounded-md bg-[#EEF2FF] px-2.5 py-1 font-semibold text-[#4338CA]">Genap 2025/2026</span>
+                                <span>• Status Jadwal:</span>
+                                <span class="inline-flex items-center gap-1.5 rounded-md bg-[#D1FAE5] px-2.5 py-1 font-semibold text-[#065F46]">
+                                    <iconify-icon icon="lucide:lock-open" class="text-sm"></iconify-icon>
+                                    Masa Input Jadwal Aktif
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <a href="#" id="welcome-schedule-link" class="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#E2E8F0] bg-white px-4 text-sm font-semibold text-[#475569] hover:bg-[#F8FAFC]">
+                            <iconify-icon icon="lucide:calendar-days" class="text-base"></iconify-icon>Atur Jadwal
+                        </a>
+                        <a href="#" id="welcome-journal-link" class="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#4F46E5] px-4 text-sm font-semibold text-white hover:bg-[#4338CA]">
+                            <iconify-icon icon="lucide:notebook-pen" class="text-base"></iconify-icon>Jurnal &amp; Presensi
+                        </a>
+                        <a href="#" id="welcome-report-link" class="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#059669] bg-white px-4 text-sm font-semibold text-[#059669] hover:bg-[#D1FAE5]">
+                            <iconify-icon icon="lucide:bar-chart-3" class="text-base"></iconify-icon>Rekap Presensi
+                        </a>
+                    </div>
+                </section>
+
+                <section class="rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
+                    <div class="mb-5 flex items-center justify-between border-b border-[#F1F5F9] pb-4">
+                        <div class="flex items-center gap-3">
+                            <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-[#EEF2FF] text-[#4F46E5]">
+                                <iconify-icon icon="lucide:clock" class="text-xl"></iconify-icon>
+                            </span>
+                            <div>
+                                <h2 class="text-base font-semibold text-[#0F172A]">Sesi Mengajar Hari Ini (Kamis, 22 Oct 2026)</h2>
+                                <p class="mt-0.5 text-sm text-[#475569]">Pantau pelaksanaan kelas dan pengisian presensi siswa hari ini.</p>
+                            </div>
+                        </div>
+                        <span class="rounded-full bg-[#EEF2FF] px-2.5 py-1 text-xs font-semibold text-[#4338CA]">3 Sesi</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        <article class="flex min-h-48 flex-col justify-between rounded-xl border border-[#A7F3D0] bg-[#F0FDF4] p-5">
+                            <div>
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="inline-flex items-center gap-1.5 rounded-md bg-[#D1FAE5] px-2 py-1 text-xs font-semibold text-[#065F46]"><iconify-icon icon="lucide:circle-check" class="text-sm"></iconify-icon>Jurnal Terisi</span>
+                                    <span class="rounded-md bg-[#F1F5F9] px-2 py-1 font-mono text-xs font-medium text-[#475569]">07:00 - 08:20</span>
+                                </div>
+                                <h3 class="mt-4 text-[15px] font-semibold text-[#0F172A]">Prakarya dan Kewirausahaan</h3>
+                                <p class="mt-1 text-sm text-[#475569]">XII TKR 1 · Workshop A</p>
+                            </div>
+                            <a href="#" id="session-filled-link" class="mt-5 flex h-9 w-full items-center justify-center rounded-lg border border-[#059669] bg-white px-4 text-sm font-semibold text-[#059669] hover:bg-[#D1FAE5]">Lihat Rekap Presensi</a>
+                        </article>
+
+                        <article class="flex min-h-48 flex-col justify-between rounded-xl border border-[#E2E8F0] bg-white p-5">
+                            <div>
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="inline-flex items-center gap-1.5 rounded-md bg-[#FEF3C7] px-2 py-1 text-xs font-semibold text-[#92400E]"><iconify-icon icon="lucide:clock" class="text-sm"></iconify-icon>Belum Diisi</span>
+                                    <span class="rounded-md bg-[#F1F5F9] px-2 py-1 font-mono text-xs font-medium text-[#475569]">08:20 - 09:40</span>
+                                </div>
+                                <h3 class="mt-4 text-[15px] font-semibold text-[#0F172A]">Prakarya dan Kewirausahaan</h3>
+                                <p class="mt-1 text-sm text-[#475569]">XII TKR 1 · Workshop A</p>
+                            </div>
+                            <a href="#" id="session-pending-link" class="mt-5 flex h-9 w-full items-center justify-center rounded-lg bg-[#4F46E5] px-4 text-sm font-semibold text-white hover:bg-[#4338CA]">Isi Jurnal &amp; Presensi</a>
+                        </article>
+
+                        <article class="flex min-h-48 flex-col justify-between rounded-xl border border-[#FECACA] bg-[#FEF2F2] p-5">
+                            <div>
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="inline-flex items-center gap-1.5 rounded-md bg-[#FEE2E2] px-2 py-1 text-xs font-semibold text-[#991B1B]"><iconify-icon icon="lucide:triangle-alert" class="text-sm"></iconify-icon>Terlambat (&gt;30 mnt)</span>
+                                    <span class="rounded-md bg-[#F1F5F9] px-2 py-1 font-mono text-xs font-medium text-[#475569]">09:40 - 10:20</span>
+                                </div>
+                                <h3 class="mt-4 text-[15px] font-semibold text-[#0F172A]">Prakarya dan Kewirausahaan</h3>
+                                <p class="mt-1 text-sm text-[#475569]">XII TKR 2 · Ruang Kelas 12</p>
+                            </div>
+                            <a href="#" id="session-overdue-link" class="mt-5 flex h-9 w-full items-center justify-center rounded-lg bg-[#DC2626] px-4 text-sm font-semibold text-white hover:bg-[#991B1B]">Isi Jurnal &amp; Presensi</a>
+                        </article>
+                    </div>
+                </section>
+
+                <section class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <article class="flex flex-col justify-between rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
+                        <div>
+                            <div class="flex items-start justify-between gap-4">
+                                <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-[#EEF2FF] text-[#4F46E5]"><iconify-icon icon="lucide:calendar-days" class="text-xl"></iconify-icon></span>
+                                <span class="rounded-full bg-[#EEF2FF] px-2.5 py-1 text-xs font-semibold text-[#4338CA]">12 Sesi Terdaftar</span>
+                            </div>
+                            <h2 class="mt-4 text-base font-semibold text-[#0F172A]">Manajemen Jadwal Mandiri</h2>
+                            <p class="mt-1 text-sm leading-5 text-[#475569]">Atur jadwal mengajar Anda sesuai SK. Dilengkapi validasi otomatis anti-bentrok ruangan, waktu, dan kelas.</p>
+                        </div>
+                        <a href="#" id="module-schedule-link" class="mt-5 flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-[#E2E8F0] bg-white px-4 text-sm font-semibold text-[#475569] hover:bg-[#F8FAFC]">Buka Pengaturan Jadwal<iconify-icon icon="lucide:arrow-right" class="text-base"></iconify-icon></a>
+                    </article>
+
+                    <article class="flex flex-col justify-between rounded-xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
+                        <div>
+                            <div class="flex items-start justify-between gap-4">
+                                <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-[#FEF3C7] text-[#92400E]"><iconify-icon icon="lucide:notebook-pen" class="text-xl"></iconify-icon></span>
+                                <span class="rounded-full bg-[#FEF3C7] px-2.5 py-1 text-xs font-semibold text-[#92400E]">Modul Presensi &amp; Jurnal</span>
+                            </div>
+                            <h2 class="mt-4 text-base font-semibold text-[#0F172A]">Buka Kelas &amp; Jurnal Mengajar</h2>
+                            <p class="mt-1 text-sm leading-5 text-[#475569]">Isi materi mengajar harian, unggah foto kegiatan kelas realtime, dan lakukan sinkronisasi presensi otomatis siswa.</p>
+                        </div>
+                        <a href="#" id="module-journal-link" class="mt-5 flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-[#4F46E5] px-4 text-sm font-semibold text-white hover:bg-[#4338CA]">Buka Jurnal &amp; Isi Presensi<iconify-icon icon="lucide:arrow-right" class="text-base"></iconify-icon></a>
+                    </article>
+                </section>
+            </div>
+        </main>
+    </div>
+</body>
+</html>
