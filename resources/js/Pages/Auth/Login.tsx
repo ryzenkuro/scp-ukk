@@ -63,7 +63,7 @@ export default function Login({ status }: LoginProps) {
                             id="username"
                             type="text"
                             value={data.username}
-                            placeholder="Contoh: 202611001 atau admin"
+                            placeholder="Contoh: 202611001 atau waka"
                             autoComplete="username"
                             autoFocus
                             onChange={(e) => setData('username', e.target.value)}

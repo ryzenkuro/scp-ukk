@@ -19,7 +19,7 @@ class Phase1WakaDashboardTest extends TestCase
 
     public function test_waka_can_toggle_cycle(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
         $config = SystemConfiguration::current();
         $this->assertEquals(1, $config->active_cycle);
 
@@ -37,7 +37,7 @@ class Phase1WakaDashboardTest extends TestCase
 
     public function test_waka_can_toggle_lock(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
         $config = SystemConfiguration::current();
         $this->assertFalse($config->is_scheduled_locked);
 
@@ -63,7 +63,7 @@ class Phase1WakaDashboardTest extends TestCase
 
     public function test_waka_can_advance_academic_year_to_next_period(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
         $config = SystemConfiguration::current();
         $config->update(['academic_year' => '2026/2027']);
 
@@ -85,7 +85,7 @@ class Phase1WakaDashboardTest extends TestCase
 
     public function test_academic_year_update_needed_logic_and_dashboard_props(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
         $config = SystemConfiguration::current();
 
         // 1. Saat tahun DB sama dengan tahun berjalan (2026/2027) -> needs_year_update = false (abu-abu/disabled)

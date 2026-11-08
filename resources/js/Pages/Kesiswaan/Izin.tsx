@@ -96,7 +96,7 @@ export default function Izin({ leaves, kelasList = [], stats, filters }: IzinPro
 
   const handleFilter = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    router.get('/kesiswaan/izin', {
+    router.get('/bk/izin', {
       search,
       status: statusFilter,
       type: typeFilter,
@@ -113,7 +113,7 @@ export default function Izin({ leaves, kelasList = [], stats, filters }: IzinPro
     setClassFilter('all');
     setStartDate('');
     setEndDate('');
-    router.get('/kesiswaan/izin', {}, { preserveState: true });
+    router.get('/bk/izin', {}, { preserveState: true });
   };
 
   const handlePrint = () => {
@@ -160,7 +160,7 @@ export default function Izin({ leaves, kelasList = [], stats, filters }: IzinPro
 
   return (
     <AppLayout title="Rekap Izin Rombel">
-      <Head title="Rekap Izin Rombel - Tim Kesiswaan" />
+      <Head title="Rekap Izin Rombel - Guru BK" />
 
       <div className="space-y-6">
         {/* Header & Print Button */}
@@ -168,7 +168,7 @@ export default function Izin({ leaves, kelasList = [], stats, filters }: IzinPro
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Monitoring Kesiswaan
+                Monitoring Guru BK
               </span>
               <Badge variant="outline" className="text-[10px]">
                 Seluruh Rombel

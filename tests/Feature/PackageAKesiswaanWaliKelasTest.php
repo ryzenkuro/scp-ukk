@@ -264,7 +264,7 @@ class PackageAKesiswaanWaliKelasTest extends TestCase
         ]);
 
         $kesiswaanRedirect = $this->actingAs($kesiswaanUser)->get('/dashboard');
-        $kesiswaanRedirect->assertRedirect(route('kesiswaan.dashboard'));
+        $kesiswaanRedirect->assertRedirect(route('bk.dashboard'));
 
         $wakaUser = User::where('role_id', 1)->first();
         $wakaUser->update(['must_change_credentials' => false]);

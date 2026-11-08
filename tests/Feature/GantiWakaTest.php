@@ -24,7 +24,7 @@ class GantiWakaTest extends TestCase
     {
         $waka = User::factory()->create([
             'role_id' => 1,
-            'username' => 'admin',
+            'username' => 'waka',
             'fullname' => 'Drs. H. Hartono, M.Pd (Waka Kurikulum)',
         ]);
 
@@ -36,7 +36,7 @@ class GantiWakaTest extends TestCase
     {
         $waka = User::factory()->create([
             'role_id' => 1,
-            'username' => 'admin',
+            'username' => 'waka',
             'fullname' => 'Drs. H. Hartono, M.Pd (Waka Kurikulum)',
             'email' => 'waka@smkn1bantul.sch.id',
         ]);
@@ -73,7 +73,7 @@ class GantiWakaTest extends TestCase
 
     public function test_validation_fails_for_invalid_ganti_waka_payload(): void
     {
-        $waka = User::factory()->create(['role_id' => 1, 'username' => 'admin']);
+        $waka = User::factory()->create(['role_id' => 1, 'username' => 'waka']);
 
         $response = $this->actingAs($waka)->post(route('waka.akun.ganti-waka'), [
             'fullname' => '',

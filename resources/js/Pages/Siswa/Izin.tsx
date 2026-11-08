@@ -219,7 +219,7 @@ export default function SiswaIzin({ student, leaves, todayDate }: IzinProps) {
                                                 </span>
                                             </div>
                                             <p className="text-xs text-muted-foreground">
-                                                Foto ini akan diverifikasi oleh Wali Kelas dan Tim Kesiswaan.
+                                                Foto ini akan diverifikasi oleh Wali Kelas dan Guru BK.
                                             </p>
                                             <div className="flex items-center gap-2 pt-1">
                                                 <Button
@@ -303,7 +303,7 @@ export default function SiswaIzin({ student, leaves, todayDate }: IzinProps) {
                             Riwayat Permohonan Izin Anda
                         </CardTitle>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                            Status verifikasi dari Wali Kelas atau Tim Kesiswaan sekolah.
+                            Status verifikasi dari Wali Kelas atau Guru BK sekolah.
                         </p>
                     </CardHeader>
 

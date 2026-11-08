@@ -23,7 +23,7 @@ class Phase4JadwalTest extends TestCase
 
     public function test_waka_can_view_jadwal_index(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
 
         $response = $this->actingAs($waka)->get('/waka/jadwal');
 
@@ -41,7 +41,7 @@ class Phase4JadwalTest extends TestCase
 
     public function test_waka_cannot_add_schedule_when_locked(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
         $config = SystemConfiguration::current();
         $config->update(['is_scheduled_locked' => true]);
 
@@ -73,7 +73,7 @@ class Phase4JadwalTest extends TestCase
 
     public function test_waka_can_add_schedule_when_unlocked(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
         $config = SystemConfiguration::current();
         $config->update(['is_scheduled_locked' => false]);
 
@@ -107,7 +107,7 @@ class Phase4JadwalTest extends TestCase
 
     public function test_conflict_detection_prevents_teacher_overlap(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
         $config = SystemConfiguration::current();
         $config->update(['is_scheduled_locked' => false]);
 
@@ -158,7 +158,7 @@ class Phase4JadwalTest extends TestCase
 
     public function test_conflict_detection_prevents_room_overlap(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
         $config = SystemConfiguration::current();
         $config->update(['is_scheduled_locked' => false]);
 
@@ -209,7 +209,7 @@ class Phase4JadwalTest extends TestCase
 
     public function test_conflict_detection_prevents_class_overlap(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
         $config = SystemConfiguration::current();
         $config->update(['is_scheduled_locked' => false]);
 
@@ -260,7 +260,7 @@ class Phase4JadwalTest extends TestCase
 
     public function test_waka_can_update_and_delete_schedule(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
         $config = SystemConfiguration::current();
         $config->update(['is_scheduled_locked' => false]);
 
@@ -301,7 +301,7 @@ class Phase4JadwalTest extends TestCase
 
     public function test_waka_can_reset_all_schedules_from_zero(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
         $config = SystemConfiguration::current();
         $config->update(['is_scheduled_locked' => false]);
 
@@ -320,7 +320,7 @@ class Phase4JadwalTest extends TestCase
 
     public function test_waka_can_reset_all_time_slots_separately(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
         $initialScheduleCount = Schedule::count();
         $this->assertGreaterThan(0, $initialScheduleCount);
         $this->assertGreaterThan(0, TimeSlot::count());
@@ -338,7 +338,7 @@ class Phase4JadwalTest extends TestCase
 
     public function test_waka_can_download_jam_pelajaran_template_and_contoh(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
 
         $responseTemplate = $this->actingAs($waka)->get('/waka/jam-pelajaran/template');
         $responseTemplate->assertStatus(200);
@@ -349,7 +349,7 @@ class Phase4JadwalTest extends TestCase
 
     public function test_waka_can_import_jam_pelajaran_separately(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
 
         // Buat file CSV master jam pembelajaran
         $csvContent = "Urutan,Nama Jam / Sesi,Jam Mulai,Jam Selesai,Tipe\n";
@@ -385,7 +385,7 @@ class Phase4JadwalTest extends TestCase
 
     public function test_waka_jam_pelajaran_displays_active_cycle_from_dashboard(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
         $config = SystemConfiguration::current();
         $config->update(['active_cycle' => 2]);
 
@@ -400,7 +400,7 @@ class Phase4JadwalTest extends TestCase
 
     public function test_delete_time_slot_only_deletes_time_slot_and_preserves_schedules(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
         $slot = TimeSlot::first();
         $schedule = Schedule::where('start_slot_id', $slot->id)->first();
         $this->assertNotNull($schedule);
@@ -420,7 +420,7 @@ class Phase4JadwalTest extends TestCase
 
     public function test_import_jadwal_maps_to_existing_time_slots(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
         $config = SystemConfiguration::current();
         $config->update(['is_scheduled_locked' => false]);
 

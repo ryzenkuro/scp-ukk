@@ -44,7 +44,7 @@ class AuthenticatedSessionController extends Controller
         $roleName = $user->role?->name ?? 'waka';
         $defaultRoute = match ($roleName) {
             'waka' => route('waka.dashboard', absolute: false),
-            'kesiswaan' => route('kesiswaan.dashboard', absolute: false),
+            'guru_bk', 'bk', 'kesiswaan' => route('bk.dashboard', absolute: false),
             'wali_kelas' => route('wali-kelas.dashboard', absolute: false),
             'guru' => $user->isWaliKelas()
                 ? route('wali-kelas.dashboard', absolute: false)
@@ -58,7 +58,7 @@ class AuthenticatedSessionController extends Controller
         if ($intendedUrl) {
             $isAuthorizedIntended = match ($roleName) {
                 'waka' => true,
-                'kesiswaan' => str_contains($intendedUrl, '/kesiswaan') || str_contains($intendedUrl, '/guru') || str_contains($intendedUrl, '/profile'),
+                'guru_bk', 'bk', 'kesiswaan' => str_contains($intendedUrl, '/bk') || str_contains($intendedUrl, '/kesiswaan') || str_contains($intendedUrl, '/guru') || str_contains($intendedUrl, '/profile'),
                 'wali_kelas' => str_contains($intendedUrl, '/wali-kelas') || str_contains($intendedUrl, '/guru') || str_contains($intendedUrl, '/profile'),
                 'guru' => str_contains($intendedUrl, '/guru') || str_contains($intendedUrl, '/profile'),
                 'siswa' => str_contains($intendedUrl, '/siswa') || str_contains($intendedUrl, '/profile'),

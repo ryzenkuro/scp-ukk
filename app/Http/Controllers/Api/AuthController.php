@@ -113,7 +113,7 @@ class AuthController extends Controller
             1 => 'Waka Kurikulum',
             2 => 'Guru Pengajar',
             3 => 'Siswa',
-            4 => 'Kesiswaan',
+            4 => 'Guru BK',
             5 => 'Wali Kelas',
             6 => 'Orang Tua',
         ];

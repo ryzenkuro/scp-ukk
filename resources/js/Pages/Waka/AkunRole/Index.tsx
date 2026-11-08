@@ -109,7 +109,7 @@ export default function AkunRoleIndex({ users, roles, filters, currentWaka }: In
     const activeWaka = currentWaka || users.data.find(u => u.role_id === 1 || u.role?.name === 'waka') || {
         id: 1,
         fullname: 'Drs. H. Hartono, M.Pd (Waka Kurikulum)',
-        username: 'admin',
+        username: 'waka',
         email: 'waka@smkn1bantul.sch.id',
         phone: '081234567890',
         nip: '-',
@@ -121,7 +121,7 @@ export default function AkunRoleIndex({ users, roles, filters, currentWaka }: In
     const gantiWakaForm = useForm({
         fullname: '',
         nip: '',
-        username: activeWaka?.username || 'admin',
+        username: activeWaka?.username || 'waka',
         email: activeWaka?.email || 'waka@smkn1bantul.sch.id',
         phone: activeWaka?.phone || '',
         password: '',
@@ -137,7 +137,7 @@ export default function AkunRoleIndex({ users, roles, filters, currentWaka }: In
         gantiWakaForm.setData({
             fullname: '',
             nip: activeWaka?.nip || '',
-            username: activeWaka?.username || 'admin',
+            username: activeWaka?.username || 'waka',
             email: activeWaka?.email || 'waka@smkn1bantul.sch.id',
             phone: activeWaka?.phone || '',
             password: '',
@@ -229,6 +229,7 @@ export default function AkunRoleIndex({ users, roles, filters, currentWaka }: In
     const submitToggleActive = () => {
         if (!toggleItem) return;
         if (
+            toggleItem.username === 'waka' ||
             toggleItem.username === 'admin' ||
             toggleItem.role?.name === 'waka' ||
             toggleItem.role_id === 1 ||
@@ -252,6 +253,7 @@ export default function AkunRoleIndex({ users, roles, filters, currentWaka }: In
     const submitDelete = () => {
         if (!deleteItem) return;
         if (
+            deleteItem.username === 'waka' ||
             deleteItem.username === 'admin' ||
             deleteItem.role?.name === 'waka' ||
             deleteItem.role_id === 1 ||
@@ -378,6 +380,7 @@ export default function AkunRoleIndex({ users, roles, filters, currentWaka }: In
                                 ) : (
                                     users.data.map((user, idx) => {
                                         const isProtectedAdmin =
+                                            user.username === 'waka' ||
                                             user.username === 'admin' ||
                                             user.role?.name === 'waka' ||
                                             user.role_id === 1 ||
@@ -1004,7 +1007,7 @@ export default function AkunRoleIndex({ users, roles, filters, currentWaka }: In
                                                         Username Akun Login <span className="text-destructive">*</span>
                                                     </label>
                                                     <Input
-                                                        placeholder="admin"
+                                                        placeholder="waka"
                                                         value={gantiWakaForm.data.username}
                                                         onChange={(e) => gantiWakaForm.setData('username', e.target.value)}
                                                         className="mt-1 font-mono text-sm"

@@ -146,31 +146,31 @@ export function SidebarNav() {
     }
   ];
 
-  // Navigasi Kesiswaan
-  const kesiswaanNavGroups: NavGroupData[] = [
+  // Navigasi Guru BK (Bimbingan & Konseling)
+  const guruBkNavGroups: NavGroupData[] = [
     {
-      heading: 'Portal Kesiswaan',
+      heading: 'Portal Guru BK',
       items: [
         {
-          id: 'dashboard-kesiswaan',
-          title: 'Dashboard Kesiswaan',
-          href: '/kesiswaan/dashboard',
+          id: 'dashboard-bk',
+          title: 'Dashboard Guru BK',
+          href: '/bk/dashboard',
           icon: LayoutDashboard,
-          active: url === '/kesiswaan/dashboard',
+          active: url === '/bk/dashboard' || url === '/kesiswaan/dashboard',
         },
         {
-          id: 'presensi-kesiswaan',
+          id: 'presensi-bk',
           title: 'Rekap Presensi Rombel',
-          href: '/kesiswaan/presensi',
+          href: '/bk/presensi',
           icon: FileText,
-          active: url.startsWith('/kesiswaan/presensi'),
+          active: url.startsWith('/bk/presensi') || url.startsWith('/kesiswaan/presensi'),
         },
         {
-          id: 'izin-kesiswaan',
+          id: 'izin-bk',
           title: 'Rekap Izin Rombel',
-          href: '/kesiswaan/izin',
+          href: '/bk/izin',
           icon: ClipboardList,
-          active: url.startsWith('/kesiswaan/izin'),
+          active: url.startsWith('/bk/izin') || url.startsWith('/kesiswaan/izin'),
         },
       ]
     },
@@ -178,14 +178,14 @@ export function SidebarNav() {
       heading: 'Operasional Mengajar',
       items: [
         {
-          id: 'dashboard-guru-kesiswaan',
+          id: 'dashboard-guru-bk',
           title: 'Dashboard Guru',
           href: '/guru/dashboard',
           icon: BookOpen,
           active: url === '/guru/dashboard',
         },
         {
-          id: 'jurnal-kbm-kesiswaan',
+          id: 'jurnal-kbm-bk',
           title: 'Jurnal & Presensi KBM',
           href: '/guru/journal',
           icon: Clock,
@@ -306,8 +306,8 @@ export function SidebarNav() {
 
   const isWali = roleName === 'wali_kelas' || (user?.homeroom_assignments && user.homeroom_assignments.length > 0);
   let currentGroups = wakaNavGroups;
-  if (roleName === 'kesiswaan') {
-    currentGroups = kesiswaanNavGroups;
+  if (roleName === 'guru_bk' || roleName === 'bk' || roleName === 'kesiswaan') {
+    currentGroups = guruBkNavGroups;
   } else if (isWali) {
     currentGroups = waliKelasNavGroups;
   } else if (roleName === 'guru') {
@@ -419,7 +419,7 @@ export function SidebarNav() {
             </div>
             <div className="truncate">
               <p className="truncate text-xs font-semibold">{user?.fullname || user?.username}</p>
-              <p className="truncate text-[10px] text-muted-foreground capitalize">{roleName}</p>
+              <p className="truncate text-[10px] text-muted-foreground">{user?.role?.label || roleName}</p>
             </div>
           </Link>
           <Link

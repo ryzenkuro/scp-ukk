@@ -23,7 +23,7 @@ class Phase2TimeSlotAndDashboardTest extends TestCase
 
     public function test_waka_can_view_jam_pelajaran_index(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
 
         $response = $this->actingAs($waka)->get('/waka/jam-pelajaran');
 
@@ -36,7 +36,7 @@ class Phase2TimeSlotAndDashboardTest extends TestCase
 
     public function test_waka_can_create_new_time_slot(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
 
         $response = $this->actingAs($waka)->post('/waka/jam-pelajaran', [
             'name' => 'Jam Ke-9',
@@ -60,7 +60,7 @@ class Phase2TimeSlotAndDashboardTest extends TestCase
 
     public function test_waka_can_update_time_slot(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
         $slot = TimeSlot::where('order', 1)->first();
 
         $response = $this->actingAs($waka)->put("/waka/jam-pelajaran/{$slot->id}", [
@@ -83,7 +83,7 @@ class Phase2TimeSlotAndDashboardTest extends TestCase
 
     public function test_waka_can_delete_time_slot(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
         $slot = TimeSlot::create([
             'name' => 'Jam Tambahan',
             'start_time' => '16:00',
@@ -104,7 +104,7 @@ class Phase2TimeSlotAndDashboardTest extends TestCase
 
     public function test_waka_dashboard_renders_operational_data(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
 
         $response = $this->actingAs($waka)->get('/waka/dashboard');
 

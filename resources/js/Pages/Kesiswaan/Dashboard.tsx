@@ -92,8 +92,8 @@ export default function Dashboard({
   };
 
   return (
-    <AppLayout title="Dashboard Kesiswaan">
-      <Head title="Dashboard Kesiswaan" />
+    <AppLayout title="Dashboard Guru BK">
+      <Head title="Dashboard Guru BK" />
 
       <div className="space-y-6">
         {/* Header Greeting & Quick Actions */}
@@ -102,7 +102,7 @@ export default function Dashboard({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Portal Tim Kesiswaan
+                  Portal Guru BK
                 </span>
                 <Badge variant="outline" className="text-xs">
                   Siklus Putaran {config?.active_cycle ?? 1}
@@ -112,7 +112,7 @@ export default function Dashboard({
                 </Badge>
               </div>
               <h2 className="text-2xl font-bold tracking-tight mt-1.5">
-                Monitoring Kesiswaan & Ketertiban Rombel
+                Monitoring Bimbingan Konseling & Ketertiban Rombel
               </h2>
               <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">
                 Pantau kedisiplinan dan kehadiran siswa di seluruh rombel, tinjau rekapitulasi izin yang diproses Wali Kelas, dan kelola agenda jam KBM.
@@ -121,13 +121,13 @@ export default function Dashboard({
             
             {/* Quick Action Navigation */}
             <div className="flex flex-wrap items-center gap-2">
-              <Link href="/kesiswaan/presensi">
+              <Link href="/bk/presensi">
                 <Button variant="default" size="sm" className="gap-1.5 text-xs">
                   <FileText className="h-4 w-4" />
                   <span>Rekap Presensi Rombel</span>
                 </Button>
               </Link>
-              <Link href="/kesiswaan/izin">
+              <Link href="/bk/izin">
                 <Button variant="outline" size="sm" className="gap-1.5 text-xs">
                   <ClipboardList className="h-4 w-4" />
                   <span>Rekap Izin Rombel</span>
@@ -227,7 +227,7 @@ export default function Dashboard({
                 Monitoring izin dari seluruh rombel sekolah (verifikasi dilakukan oleh masing-masing Wali Kelas).
               </p>
             </div>
-            <Link href="/kesiswaan/izin">
+            <Link href="/bk/izin">
               <Button variant="outline" size="sm" className="gap-1.5 text-xs">
                 <span>Lihat Semua Rekap Izin</span>
                 <ArrowRight className="h-3.5 w-3.5" />

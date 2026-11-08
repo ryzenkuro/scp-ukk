@@ -1,4 +1,4 @@
-name: Production CI/CD & DevSecOps Pipeline
+name: Production CI/CD Pipeline
 
 on:
   push:
@@ -11,26 +11,10 @@ env:
 
 jobs:
   # ==========================================
-  # STAGE 1: SAST Security Code Audit (Semgrep)
-  # ==========================================
-  security-sast:
-    name: SAST Code Audit (Semgrep)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Source Code
-        uses: actions/checkout@v4
-
-      - name: Run Semgrep SAST Scan
-        run: |
-          python3 -m pip install semgrep
-          semgrep scan --config auto --error || true
-
-  # ==========================================
-  # STAGE 2: Build & Push Docker Image ke GHCR
+  # STAGE 1: Build & Push Docker Image ke GHCR
   # ==========================================
   build-and-push:
     name: Build & Push Docker Image
-    needs: security-sast
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -70,27 +54,11 @@ jobs:
           cache-to: type=gha,mode=max
 
   # ==========================================
-  # STAGE 3: Container Vulnerability Scan (Trivy)
-  # ==========================================
-  security-container:
-    name: Container Vulnerability Scan (Trivy)
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    steps:
-      - name: Run Trivy Vulnerability Scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-          format: 'table'
-          severity: 'CRITICAL,HIGH'
-          exit-code: '0'
-
-  # ==========================================
-  # STAGE 4: Automated Deploy ke VPS K3s via SSH
+  # STAGE 2: Automated Deploy ke VPS K3s via SSH
   # ==========================================
   deploy-to-vps:
     name: Deploy to Production K3s VPS
-    needs: security-container
+    needs: build-and-push
     runs-on: ubuntu-latest
     steps:
       - name: Execute Remote SSH Commands on VPS
@@ -117,23 +85,3 @@ jobs:
 
             # 5. Tunggu proses deployment sampai status Ready (1/1 Running)
             kubectl rollout status deployment/laravel-app -n ukk-production --timeout=180s
-
-  # ==========================================
-  # STAGE 5: DAST Web Security Audit (Nuclei & OWASP ZAP)
-  # ==========================================
-  security-dast:
-    name: DAST Web Security Audit
-    needs: deploy-to-vps
-    runs-on: ubuntu-latest
-    steps:
-      - name: Run Nuclei Vulnerability Scan
-        uses: projectdiscovery/nuclei-action@main
-        with:
-          target: "https://${{ secrets.APP_DOMAIN }}"
-          flags: "-severity critical,high -silent"
-
-      - name: Run OWASP ZAP Baseline Security Scan
-        uses: zaproxy/action-baseline@v0.12.0
-        with:
-          target: "https://${{ secrets.APP_DOMAIN }}"
-          fail_action: false

@@ -22,7 +22,7 @@ class Phase1ActivationAuthTest extends TestCase
     public function test_admin_waka_can_login_directly_to_dashboard(): void
     {
         $response = $this->post('/login', [
-            'username' => 'admin',
+            'username' => 'waka',
             'password' => 'smkn1bantul2026',
         ]);
 
@@ -30,7 +30,7 @@ class Phase1ActivationAuthTest extends TestCase
         $response->assertRedirect('/waka/dashboard');
 
         // Pastikan halaman Waka Dashboard dapat dibuka
-        $dashResponse = $this->actingAs(User::where('username', 'admin')->first())
+        $dashResponse = $this->actingAs(User::where('username', 'waka')->first())
             ->get('/waka/dashboard');
         $dashResponse->assertStatus(200);
     }

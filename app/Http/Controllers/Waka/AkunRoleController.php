@@ -165,7 +165,7 @@ class AkunRoleController extends Controller
     public function toggleActive(User $user): RedirectResponse
     {
         // Proteksi keamanan: akun administrator / waka / akun aktif tidak boleh dinonaktifkan
-        if ($user->id === auth()->id() || $user->username === 'admin' || (int) $user->role_id === 1 || $user->role?->name === 'waka') {
+        if ($user->id === auth()->id() || in_array($user->username, ['waka', 'admin'], true) || (int) $user->role_id === 1 || $user->role?->name === 'waka') {
             return back()->with('error', 'Akun Administrator / Waka Kurikulum tidak dapat dinonaktifkan demi menjaga stabilitas sistem.');
         }
 
@@ -195,8 +195,8 @@ class AkunRoleController extends Controller
      */
     public function destroy(User $user): RedirectResponse
     {
-        // Proteksi keamanan: tidak boleh menghapus akun admin atau akun yang sedang aktif digunakan
-        if ($user->id === auth()->id() || $user->username === 'admin' || (int) $user->role_id === 1 || $user->role?->name === 'waka') {
+        // Proteksi keamanan: tidak boleh menghapus akun admin/waka atau akun yang sedang aktif digunakan
+        if ($user->id === auth()->id() || in_array($user->username, ['waka', 'admin'], true) || (int) $user->role_id === 1 || $user->role?->name === 'waka') {
             return back()->with('error', 'Akun Administrator / Waka Kurikulum tidak dapat dihapus demi integritas sistem.');
         }
 

@@ -31,7 +31,9 @@ class RoleMiddleware
 
         $hasAccess = in_array($userRole, $allowedRoles, true)
             || (in_array('wali_kelas', $allowedRoles, true) && $user->isWaliKelas())
-            || (in_array('kesiswaan', $allowedRoles, true) && $user->isKesiswaan());
+            || (in_array('kesiswaan', $allowedRoles, true) && $user->isKesiswaan())
+            || (in_array('guru_bk', $allowedRoles, true) && $user->isGuruBk())
+            || (in_array('bk', $allowedRoles, true) && $user->isGuruBk());
 
         if (! $hasAccess) {
             abort(403, 'Akses Ditolak: Anda tidak memiliki izin untuk membuka halaman ini.');

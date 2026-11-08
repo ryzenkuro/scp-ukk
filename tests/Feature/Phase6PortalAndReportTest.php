@@ -83,7 +83,7 @@ class Phase6PortalAndReportTest extends TestCase
 
     public function test_waka_can_view_laporan_presensi(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
 
         $response = $this->actingAs($waka)->get('/waka/laporan/presensi?kelas=XII RPL 2');
 
@@ -99,7 +99,7 @@ class Phase6PortalAndReportTest extends TestCase
 
     public function test_waka_can_view_and_verify_leave_request(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
         $student = Siswa::first();
 
         // 1. Siswa mengajukan izin

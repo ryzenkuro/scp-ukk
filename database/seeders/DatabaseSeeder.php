@@ -25,7 +25,7 @@ class DatabaseSeeder extends Seeder
             1 => Role::firstOrCreate(['id' => 1], ['name' => 'waka', 'label' => 'Waka Kurikulum / Administrator']),
             2 => Role::firstOrCreate(['id' => 2], ['name' => 'guru', 'label' => 'Tenaga Pendidik / Guru']),
             3 => Role::firstOrCreate(['id' => 3], ['name' => 'siswa', 'label' => 'Siswa / Murid']),
-            4 => Role::firstOrCreate(['id' => 4], ['name' => 'kesiswaan', 'label' => 'Tim Kesiswaan']),
+            4 => Role::updateOrCreate(['id' => 4], ['name' => 'guru_bk', 'label' => 'Guru BK']),
             5 => Role::firstOrCreate(['id' => 5], ['name' => 'wali_kelas', 'label' => 'Wali Kelas']),
             6 => Role::firstOrCreate(['id' => 6], ['name' => 'orang_tua', 'label' => 'Orang Tua Murid']),
         ];
@@ -68,7 +68,7 @@ class DatabaseSeeder extends Seeder
         // 6. User Accounts Demo
         // Waka / Admin Utama
         $wakaUser = User::updateOrCreate(
-            ['username' => 'admin'],
+            ['username' => 'waka'],
             [
                 'role_id' => 1,
                 'fullname' => 'Drs. H. Hartono, M.Pd (Waka Kurikulum)',

@@ -21,7 +21,7 @@ class Phase3DataMasterTest extends TestCase
 
     public function test_waka_can_view_siswa_index(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
 
         $response = $this->actingAs($waka)->get('/waka/siswa');
 
@@ -36,7 +36,7 @@ class Phase3DataMasterTest extends TestCase
 
     public function test_waka_can_store_siswa_and_it_creates_both_student_and_parent_accounts(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
 
         $response = $this->actingAs($waka)->post('/waka/siswa', [
             'nis' => '202611099',
@@ -83,7 +83,7 @@ class Phase3DataMasterTest extends TestCase
 
     public function test_waka_can_update_siswa_and_it_syncs_account(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
         $siswa = Siswa::where('nis', '202611001')->first();
 
         $response = $this->actingAs($waka)->put("/waka/siswa/{$siswa->id}", [
@@ -115,7 +115,7 @@ class Phase3DataMasterTest extends TestCase
 
     public function test_naik_kelas_promotes_x_to_xi_and_xi_to_xii(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
 
         // Siswa X RPL 1 angkatan 2025
         $siswaX = Siswa::create([
@@ -153,7 +153,7 @@ class Phase3DataMasterTest extends TestCase
 
     public function test_naik_kelulusan_moves_class_xii_to_alumni_and_deactivates_user_account(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
 
         // Ambil siswa kelas XII demo: MUHYIYUDDIN (202611001, kelas XII RPL 2, angkatan 2024)
         $siswaXII = Siswa::where('nis', '202611001')->first();
@@ -193,7 +193,7 @@ class Phase3DataMasterTest extends TestCase
 
     public function test_alumni_retention_and_destroy_expired(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
 
         // Seeder sudah membuat:
         // 1. Fajar Nugroho (tahun 2026) -> Aktif (<= 2026 + 1 = 2027)
@@ -225,7 +225,7 @@ class Phase3DataMasterTest extends TestCase
 
     public function test_waka_can_manage_guru_and_reset_password(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
 
         // Tambah guru baru
         $response = $this->actingAs($waka)->post('/waka/guru', [
@@ -263,7 +263,7 @@ class Phase3DataMasterTest extends TestCase
 
     public function test_waka_can_manage_orang_tua(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
         $parent = User::where('username', 'ortu_202611001')->first();
 
         $this->assertNotNull($parent);
@@ -324,7 +324,7 @@ class Phase3DataMasterTest extends TestCase
 
     public function test_waka_can_toggle_active_and_reset_credentials_in_akun_role(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
         $studentUser = User::where('username', '202611001')->first();
 
         $this->assertTrue($studentUser->is_active);
@@ -349,10 +349,10 @@ class Phase3DataMasterTest extends TestCase
 
     public function test_admin_account_cannot_be_toggled_inactive_or_deleted(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
         $this->assertTrue($waka->is_active);
 
-        // Percobaan menonaktifkan akun admin harus ditolak
+        // Percobaan menonaktifkan akun waka harus ditolak
         $responseToggle = $this->actingAs($waka)->post("/waka/akun/{$waka->id}/toggle-active");
         $responseToggle->assertRedirect();
         $responseToggle->assertSessionHas('error');
@@ -360,31 +360,31 @@ class Phase3DataMasterTest extends TestCase
         $waka->refresh();
         $this->assertTrue($waka->is_active);
 
-        // Percobaan menghapus akun admin harus ditolak
+        // Percobaan menghapus akun waka harus ditolak
         $responseDelete = $this->actingAs($waka)->delete("/waka/akun/{$waka->id}");
         $responseDelete->assertRedirect();
         $responseDelete->assertSessionHas('error');
 
-        $this->assertDatabaseHas('users', ['id' => $waka->id, 'username' => 'admin']);
+        $this->assertDatabaseHas('users', ['id' => $waka->id, 'username' => 'waka']);
     }
 
     public function test_waka_can_reset_all_teachers_from_zero(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
 
-        $this->assertGreaterThan(0, User::whereIn('role_id', [2, 5])->where('username', '!=', 'admin')->count());
+        $this->assertGreaterThan(0, User::whereIn('role_id', [2, 5])->where('username', '!=', 'waka')->count());
 
         $response = $this->actingAs($waka)->delete('/waka/guru/reset-semua');
         $response->assertRedirect();
         $response->assertSessionHas('success');
 
-        $this->assertEquals(0, User::whereIn('role_id', [2, 5])->where('username', '!=', 'admin')->count());
-        $this->assertDatabaseHas('users', ['username' => 'admin']);
+        $this->assertEquals(0, User::whereIn('role_id', [2, 5])->where('username', '!=', 'waka')->count());
+        $this->assertDatabaseHas('users', ['username' => 'waka']);
     }
 
     public function test_waka_can_delete_all_students_at_once(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
 
         $this->assertGreaterThan(0, Siswa::count());
 
@@ -400,7 +400,7 @@ class Phase3DataMasterTest extends TestCase
 
     public function test_waka_can_store_new_account_in_akun_role(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
 
         $response = $this->actingAs($waka)->post('/waka/akun', [
             'fullname' => 'Petugas TU Baru',
@@ -426,7 +426,7 @@ class Phase3DataMasterTest extends TestCase
 
     public function test_waka_can_delete_account_in_akun_role(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
 
         // Create temporary user to delete
         $tempUser = User::create([
@@ -448,7 +448,7 @@ class Phase3DataMasterTest extends TestCase
 
     public function test_waka_can_delete_student_and_parent_account_in_akun_role(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
 
         $studentUser = User::where('username', '202611001')->first();
         $this->assertNotNull($studentUser);
@@ -469,7 +469,7 @@ class Phase3DataMasterTest extends TestCase
 
     public function test_waka_cannot_delete_self_in_akun_role(): void
     {
-        $waka = User::where('username', 'admin')->first();
+        $waka = User::where('role_id', 1)->first();
 
         $response = $this->actingAs($waka)->delete("/waka/akun/{$waka->id}");
         $response->assertRedirect();

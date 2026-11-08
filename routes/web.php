@@ -36,7 +36,7 @@ Route::get('/dashboard', function () {
 
     return match ($role) {
         'waka' => redirect()->route('waka.dashboard'),
-        'kesiswaan' => redirect()->route('kesiswaan.dashboard'),
+        'guru_bk', 'bk', 'kesiswaan' => redirect()->route('bk.dashboard'),
         'wali_kelas' => redirect()->route('wali-kelas.dashboard'),
         'guru' => $user->isWaliKelas() ? redirect()->route('wali-kelas.dashboard') : redirect()->route('guru.dashboard'),
         'siswa', 'orang_tua' => redirect()->route('siswa.dashboard'),
@@ -142,7 +142,7 @@ Route::middleware(['auth', 'role:waka'])->prefix('waka')->name('waka.')->group(f
 });
 
 // Portal Guru
-Route::middleware(['auth', 'role:guru,wali_kelas,kesiswaan'])->prefix('guru')->name('guru.')->group(function () {
+Route::middleware(['auth', 'role:guru,wali_kelas,guru_bk,kesiswaan'])->prefix('guru')->name('guru.')->group(function () {
     Route::get('/dashboard', [GuruDashboardController::class, 'index'])->name('dashboard');
     Route::get('/jadwal/export-pdf', [GuruDashboardController::class, 'exportPdf'])->name('jadwal.pdf');
 
@@ -164,8 +164,15 @@ Route::middleware(['auth', 'role:siswa,orang_tua'])->prefix('siswa')->name('sisw
     Route::post('/izin', [SiswaPortalController::class, 'submitIzin'])->name('izin.store');
 });
 
-// Portal Kesiswaan
-Route::middleware(['auth', 'role:kesiswaan'])->prefix('kesiswaan')->name('kesiswaan.')->group(function () {
+// Portal Guru BK
+Route::middleware(['auth', 'role:guru_bk,kesiswaan'])->prefix('bk')->name('bk.')->group(function () {
+    Route::get('/dashboard', [KesiswaanPortalController::class, 'dashboard'])->name('dashboard');
+    Route::get('/presensi', [KesiswaanPortalController::class, 'presensi'])->name('presensi');
+    Route::get('/izin', [KesiswaanPortalController::class, 'izin'])->name('izin');
+});
+
+// Alias backward compatibility untuk rute /kesiswaan
+Route::middleware(['auth', 'role:guru_bk,kesiswaan'])->prefix('kesiswaan')->name('kesiswaan.')->group(function () {
     Route::get('/dashboard', [KesiswaanPortalController::class, 'dashboard'])->name('dashboard');
     Route::get('/presensi', [KesiswaanPortalController::class, 'presensi'])->name('presensi');
     Route::get('/izin', [KesiswaanPortalController::class, 'izin'])->name('izin');

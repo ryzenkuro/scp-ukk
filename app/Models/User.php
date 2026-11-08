@@ -82,9 +82,14 @@ class User extends Authenticatable
         return $this->role?->name === 'guru';
     }
 
+    public function isGuruBk(): bool
+    {
+        return in_array($this->role?->name, ['guru_bk', 'bk', 'kesiswaan'], true) || (int) $this->role_id === 4;
+    }
+
     public function isKesiswaan(): bool
     {
-        return $this->role?->name === 'kesiswaan';
+        return $this->isGuruBk();
     }
 
     public function isWaliKelas(): bool

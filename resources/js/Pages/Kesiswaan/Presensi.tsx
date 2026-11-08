@@ -74,7 +74,7 @@ export default function Presensi({
 
   const handleFilter = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    router.get('/kesiswaan/presensi', {
+    router.get('/bk/presensi', {
       kelas,
       start_date: startDate,
       end_date: endDate,
@@ -84,7 +84,7 @@ export default function Presensi({
 
   const handleClassChange = (newClass: string) => {
     setKelas(newClass);
-    router.get('/kesiswaan/presensi', {
+    router.get('/bk/presensi', {
       kelas: newClass,
       start_date: startDate,
       end_date: endDate,
@@ -98,7 +98,7 @@ export default function Presensi({
 
   return (
     <AppLayout title="Rekap Presensi Rombel">
-      <Head title="Rekap Presensi Rombel - Tim Kesiswaan" />
+      <Head title="Rekap Presensi Rombel - Guru BK" />
 
       <div className="space-y-6">
         {/* Header & Print Button */}
@@ -106,7 +106,7 @@ export default function Presensi({
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Monitoring Kesiswaan
+                Monitoring Guru BK
               </span>
               <Badge variant="outline" className="text-[10px]">
                 Tingkat Sekolah
