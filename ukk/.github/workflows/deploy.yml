@@ -1,0 +1,139 @@
+name: Production CI/CD & DevSecOps Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ==========================================
+  # STAGE 1: SAST Security Code Audit (Semgrep)
+  # ==========================================
+  security-sast:
+    name: SAST Code Audit (Semgrep)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep SAST Scan
+        run: |
+          python3 -m pip install semgrep
+          semgrep scan --config auto --error || true
+
+  # ==========================================
+  # STAGE 2: Build & Push Docker Image ke GHCR
+  # ==========================================
+  build-and-push:
+    name: Build & Push Docker Image
+    needs: security-sast
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker Metadata (Tags & Labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest
+            type=sha,format=short
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ==========================================
+  # STAGE 3: Container Vulnerability Scan (Trivy)
+  # ==========================================
+  security-container:
+    name: Container Vulnerability Scan (Trivy)
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Trivy Vulnerability Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'
+
+  # ==========================================
+  # STAGE 4: Automated Deploy ke VPS K3s via SSH
+  # ==========================================
+  deploy-to-vps:
+    name: Deploy to Production K3s VPS
+    needs: security-container
+    runs-on: ubuntu-latest
+    steps:
+      - name: Execute Remote SSH Commands on VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: 22
+          script: |
+            # 1. Pindah ke direktori manifest Kubernetes di VPS
+            cd /opt/k8s-ukk
+
+            # 2. Hapus cache image lama di node VPS agar K3s mendownload image build terbaru
+            crictl rmi ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest || true
+
+            # 3. Terapkan konfigurasi manifest baru (Secrets, ConfigMap, Deployments)
+            kubectl apply -f 01-secrets-configmap.yaml
+            kubectl apply -f 04-laravel.yaml
+
+            # 4. Trigger rolling update pod aplikasi dan worker
+            kubectl rollout restart deployment/laravel-app -n ukk-production
+            kubectl rollout restart deployment/laravel-worker -n ukk-production
+
+            # 5. Tunggu proses deployment sampai status Ready (1/1 Running)
+            kubectl rollout status deployment/laravel-app -n ukk-production --timeout=180s
+
+  # ==========================================
+  # STAGE 5: DAST Web Security Audit (Nuclei & OWASP ZAP)
+  # ==========================================
+  security-dast:
+    name: DAST Web Security Audit
+    needs: deploy-to-vps
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Nuclei Vulnerability Scan
+        uses: projectdiscovery/nuclei-action@main
+        with:
+          target: "https://${{ secrets.APP_DOMAIN }}"
+          flags: "-severity critical,high -silent"
+
+      - name: Run OWASP ZAP Baseline Security Scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: "https://${{ secrets.APP_DOMAIN }}"
+          fail_action: false
