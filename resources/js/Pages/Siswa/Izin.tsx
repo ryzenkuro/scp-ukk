@@ -24,9 +24,15 @@ import {
     Camera,
     Upload,
     Trash2,
-    ExternalLink
+    ExternalLink,
+    Eye,
+    Paperclip,
+    Loader2,
 } from 'lucide-react';
 import { SelfieCameraModal } from '@/Components/camera/SelfieCameraModal';
+import { formatDateRangeIndo } from '@/lib/utils';
+import { LeaveDetailModal, LeaveDetailData } from '@/Components/modals/LeaveDetailModal';
+import { validateDocumentFile } from '@/lib/documentDetector';
 
 interface SiswaItem {
     id: number;
@@ -42,6 +48,7 @@ interface LeaveItem {
     end_date: string;
     reason: string;
     attachment_path?: string | null;
+    selfie_path?: string | null;
     status: 'pending' | 'approved' | 'rejected';
     rejection_reason?: string | null;
     created_at: string;
@@ -63,60 +70,121 @@ interface IzinProps {
 }
 
 export default function SiswaIzin({ student, leaves, todayDate }: IzinProps) {
+    const [selectedDetailLeave, setSelectedDetailLeave] = useState<LeaveDetailData | null>(null);
     const [isCameraOpen, setIsCameraOpen] = useState(false);
-    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-    const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const [selfiePreviewUrl, setSelfiePreviewUrl] = useState<string | null>(null);
+    const [documentPreviewUrl, setDocumentPreviewUrl] = useState<string | null>(null);
+    const [documentFileName, setDocumentFileName] = useState<string | null>(null);
+    const [documentFileType, setDocumentFileType] = useState<string | null>(null);
+    const [isScanningDoc, setIsScanningDoc] = useState(false);
+    const [docScanError, setDocScanError] = useState<string | null>(null);
+    const documentInputRef = useRef<HTMLInputElement | null>(null);
+
+    const initialStartDate = todayDate || new Date().toISOString().split('T')[0];
+    const initialEndDate = initialStartDate;
 
     const form = useForm<{
         type: string;
         start_date: string;
         end_date: string;
         reason: string;
+        selfie: File | null;
         attachment: File | null;
     }>({
         type: 'sakit',
-        start_date: todayDate,
-        end_date: todayDate,
+        start_date: initialStartDate,
+        end_date: initialEndDate,
         reason: '',
+        selfie: null,
         attachment: null,
     });
 
     const handleCameraCapture = (file: File, url: string) => {
-        form.setData('attachment', file);
-        form.clearErrors('attachment');
-        setPreviewUrl(url);
+        form.setData('selfie', file);
+        form.clearErrors('selfie');
+        setSelfiePreviewUrl(url);
     };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleRemoveSelfie = () => {
+        form.setData('selfie', null);
+        if (selfiePreviewUrl) {
+            URL.revokeObjectURL(selfiePreviewUrl);
+        }
+        setSelfiePreviewUrl(null);
+    };
+
+    const handleDocumentFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) {
+        if (!file) return;
+
+        setDocScanError(null);
+        form.clearErrors('attachment');
+        setIsScanningDoc(true);
+
+        try {
+            const scanResult = await validateDocumentFile(file);
+            if (!scanResult.isValidDocument) {
+                const errMsg = scanResult.errorMessage || 'Berkas ditolak: Sistem mendeteksi foto wajah/selfie. Mohon unggah dokumen fisik asli (surat dokter/keterangan) atau PDF.';
+                setDocScanError(errMsg);
+                form.setError('attachment', errMsg);
+                if (documentInputRef.current) {
+                    documentInputRef.current.value = '';
+                }
+                return;
+            }
+
             form.setData('attachment', file);
             form.clearErrors('attachment');
-            setPreviewUrl(URL.createObjectURL(file));
+            setDocumentFileName(file.name);
+            setDocumentFileType(file.type);
+            if (file.type.startsWith('image/')) {
+                setDocumentPreviewUrl(URL.createObjectURL(file));
+            } else {
+                setDocumentPreviewUrl(null);
+            }
+        } catch (err) {
+            console.error('Document scan error:', err);
+            form.setData('attachment', file);
+            form.clearErrors('attachment');
+            setDocumentFileName(file.name);
+            setDocumentFileType(file.type);
+        } finally {
+            setIsScanningDoc(false);
         }
     };
 
     const handleRemoveAttachment = () => {
         form.setData('attachment', null);
-        if (previewUrl) {
-            URL.revokeObjectURL(previewUrl);
+        if (documentPreviewUrl) {
+            URL.revokeObjectURL(documentPreviewUrl);
         }
-        setPreviewUrl(null);
-        if (fileInputRef.current) {
-            fileInputRef.current.value = '';
+        setDocumentPreviewUrl(null);
+        setDocumentFileName(null);
+        setDocumentFileType(null);
+        setDocScanError(null);
+        if (documentInputRef.current) {
+            documentInputRef.current.value = '';
         }
     };
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!form.data.attachment) {
-            form.setError('attachment', 'Bukti foto atau surat keterangan wajib dilampirkan.');
-            return;
+        let hasError = false;
+        if (!form.data.selfie) {
+            form.setError('selfie', 'Foto selfie realtime wajib diambil langsung dengan kamera.');
+            hasError = true;
         }
+        if (!form.data.attachment) {
+            form.setError('attachment', 'Berkas surat keterangan dokter / orang tua wajib diunggah.');
+            hasError = true;
+        }
+        if (hasError) return;
+
         form.post('/siswa/izin', {
             forceFormData: true,
             onSuccess: () => {
                 form.reset('reason');
+                handleRemoveSelfie();
                 handleRemoveAttachment();
             },
         });
@@ -162,7 +230,14 @@ export default function SiswaIzin({ student, leaves, todayDate }: IzinProps) {
                                         id="start_date"
                                         type="date"
                                         value={form.data.start_date}
-                                        onChange={(e) => form.setData('start_date', e.target.value)}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            form.setData((prev) => ({
+                                                ...prev,
+                                                start_date: val,
+                                                end_date: prev.end_date && val && prev.end_date < val ? val : (prev.end_date || val),
+                                            }));
+                                        }}
                                         required
                                     />
                                 </div>
@@ -173,7 +248,16 @@ export default function SiswaIzin({ student, leaves, todayDate }: IzinProps) {
                                         id="end_date"
                                         type="date"
                                         value={form.data.end_date}
-                                        onChange={(e) => form.setData('end_date', e.target.value)}
+                                        min={form.data.start_date || undefined}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            const minAllowed = form.data.start_date;
+                                            if (minAllowed && val && val < minAllowed) {
+                                                form.setData('end_date', minAllowed);
+                                            } else {
+                                                form.setData('end_date', val);
+                                            }
+                                        }}
                                         required
                                     />
                                     {form.errors.end_date && (
@@ -196,94 +280,192 @@ export default function SiswaIzin({ student, leaves, todayDate }: IzinProps) {
                                 )}
                             </div>
 
-                            {/* Section Upload Foto / Bukti Selfie Live */}
-                            <div className="space-y-2 pt-1">
-                                <Label>
-                                    Bukti Foto / Surat Keterangan (Wajib) <span className="text-destructive">*</span>
-                                </Label>
+                            {/* Section Bukti: Pemisahan Foto Selfie & Surat Keterangan */}
+                            <div className="space-y-4 pt-2 border-t border-border">
+                                <div className="space-y-1">
+                                    <h4 className="text-sm font-bold text-foreground">
+                                        Lampiran Bukti Pengajuan (Keduanya Wajib *)
+                                    </h4>
+                                    <p className="text-xs text-muted-foreground">
+                                        Harap ambil foto selfie realtime langsung dengan kamera dan unggah berkas surat keterangan dokter / izin asli.
+                                    </p>
+                                </div>
 
-                                {previewUrl ? (
-                                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-3 rounded-lg border border-border bg-muted/40">
-                                        <img
-                                            src={previewUrl}
-                                            alt="Pratinjau Bukti"
-                                            className="h-28 w-36 object-cover rounded-md border border-border shadow-xs"
-                                        />
-                                        <div className="space-y-1.5">
-                                            <div className="flex items-center gap-2">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* 1. Foto Selfie Realtime */}
+                                    <div className="p-4 rounded-xl border border-border bg-card space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                                                <Camera className="h-4 w-4 text-primary" />
+                                                <span>1. Foto Selfie Realtime (Wajib)</span>
+                                                <span className="text-destructive">*</span>
+                                            </Label>
+                                            {selfiePreviewUrl && (
                                                 <Badge variant="outline" className="text-emerald-700 border-emerald-300 bg-emerald-50 text-[11px]">
-                                                    Foto Bukti Terlampir
+                                                    Terambil
                                                 </Badge>
-                                                <span className="text-xs text-muted-foreground font-mono">
-                                                    {form.data.attachment?.name}
+                                            )}
+                                        </div>
+
+                                        <p className="text-xs text-muted-foreground">
+                                            Wajib foto manual langsung dari kamera. Pengambilan dari galeri dinonaktifkan.
+                                        </p>
+
+                                        {selfiePreviewUrl ? (
+                                            <div className="space-y-2">
+                                                <div className="relative rounded-lg overflow-hidden border border-border bg-slate-950 aspect-video flex items-center justify-center">
+                                                    <img
+                                                        src={selfiePreviewUrl}
+                                                        alt="Selfie Realtime Siswa"
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                </div>
+                                                <div className="flex items-center gap-2 pt-1">
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => setIsCameraOpen(true)}
+                                                        className="gap-1.5 text-xs h-8 flex-1"
+                                                    >
+                                                        <Camera className="h-3.5 w-3.5" />
+                                                        Foto Ulang
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        variant="destructive"
+                                                        size="sm"
+                                                        onClick={handleRemoveSelfie}
+                                                        className="gap-1.5 text-xs h-8"
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                        Hapus
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-lg p-6 text-center space-y-3 bg-muted/20">
+                                                <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center text-secondary-foreground">
+                                                    <Camera className="h-5 w-5" />
+                                                </div>
+                                                <Button
+                                                    type="button"
+                                                    variant="secondary"
+                                                    onClick={() => setIsCameraOpen(true)}
+                                                    className="gap-2 text-xs"
+                                                >
+                                                    <Camera className="h-4 w-4" />
+                                                    Buka Kamera Selfie (Live)
+                                                </Button>
+                                                <span className="text-[11px] text-muted-foreground">
+                                                    Klik untuk mengaktifkan kamera depan & ambil foto
                                                 </span>
                                             </div>
-                                            <p className="text-xs text-muted-foreground">
-                                                Foto ini akan diverifikasi oleh Wali Kelas dan Guru BK.
-                                            </p>
-                                            <div className="flex items-center gap-2 pt-1">
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => setIsCameraOpen(true)}
-                                                    className="gap-1.5 text-xs h-8"
-                                                >
-                                                    <Camera className="h-3.5 w-3.5" />
-                                                    Ambil Ulang
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    variant="destructive"
-                                                    size="sm"
-                                                    onClick={handleRemoveAttachment}
-                                                    className="gap-1.5 text-xs h-8"
-                                                >
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                    Hapus
-                                                </Button>
-                                            </div>
+                                        )}
+
+                                        {form.errors.selfie && (
+                                            <p className="text-xs text-destructive font-medium">{form.errors.selfie}</p>
+                                        )}
+                                    </div>
+
+                                    {/* 2. Surat Keterangan / Dokter */}
+                                    <div className="p-4 rounded-xl border border-border bg-card space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                                                <FileText className="h-4 w-4 text-primary" />
+                                                <span>2. Surat Keterangan / Dokter (Wajib)</span>
+                                                <span className="text-destructive">*</span>
+                                            </Label>
+                                            {form.data.attachment && (
+                                                <Badge variant="outline" className="text-emerald-700 border-emerald-300 bg-emerald-50 text-[11px]">
+                                                    Terunggah
+                                                </Badge>
+                                            )}
                                         </div>
+
+                                        <p className="text-xs text-muted-foreground">
+                                            Unggah foto surat dokter/keterangan asli atau PDF (Maks. 10MB). Sistem otomatis memverifikasi keaslian dokumen.
+                                        </p>
+
+                                        {form.data.attachment ? (
+                                            <div className="space-y-2">
+                                                {documentPreviewUrl ? (
+                                                    <div className="relative rounded-lg overflow-hidden border border-border bg-muted/30 aspect-video flex items-center justify-center">
+                                                        <img
+                                                            src={documentPreviewUrl}
+                                                            alt="Surat Keterangan"
+                                                            className="w-full h-full object-cover"
+                                                        />
+                                                    </div>
+                                                ) : (
+                                                    <div className="rounded-lg border border-border bg-muted/30 p-4 flex flex-col items-center justify-center gap-2 aspect-video text-center">
+                                                        <FileText className="h-10 w-10 text-rose-500" />
+                                                        <span className="text-xs font-semibold text-foreground">Dokumen PDF Terunggah</span>
+                                                        <span className="text-[11px] text-muted-foreground font-mono truncate max-w-[200px]">
+                                                            {documentFileName}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+                                                    <span className="truncate max-w-[180px] font-mono">{documentFileName}</span>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={handleRemoveAttachment}
+                                                        className="text-xs h-7 text-destructive hover:bg-destructive/10 gap-1"
+                                                    >
+                                                        <Trash2 className="h-3 w-3" />
+                                                        Ganti Berkas
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-lg p-6 text-center space-y-3 bg-muted/20">
+                                                {isScanningDoc ? (
+                                                    <div className="py-4 space-y-2 flex flex-col items-center">
+                                                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                                                        <p className="text-xs text-muted-foreground">
+                                                            Memverifikasi jenis dokumen...
+                                                        </p>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center text-secondary-foreground">
+                                                            <Upload className="h-5 w-5" />
+                                                        </div>
+                                                        <Button
+                                                            type="button"
+                                                            variant="secondary"
+                                                            onClick={() => documentInputRef.current?.click()}
+                                                            className="gap-2 text-xs"
+                                                        >
+                                                            <Upload className="h-4 w-4" />
+                                                            Pilih Berkas Surat
+                                                        </Button>
+                                                        <input
+                                                            ref={documentInputRef}
+                                                            type="file"
+                                                            accept="image/jpeg,image/png,image/webp,application/pdf"
+                                                            onChange={handleDocumentFileChange}
+                                                            className="hidden"
+                                                        />
+                                                        <span className="text-[11px] text-muted-foreground">
+                                                            Format: JPG, PNG, WEBP, atau PDF
+                                                        </span>
+                                                    </>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {(docScanError || form.errors.attachment) && (
+                                            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive flex items-start gap-1.5">
+                                                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                                                <span>{docScanError || form.errors.attachment}</span>
+                                            </div>
+                                        )}
                                     </div>
-                                ) : (
-                                    <div className="flex flex-wrap items-center gap-3">
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={() => setIsCameraOpen(true)}
-                                            className="gap-2 text-xs"
-                                        >
-                                            <Camera className="h-4 w-4 text-primary" />
-                                            Buka Kamera Selfie (Live)
-                                        </Button>
-
-                                        <Button
-                                            type="button"
-                                            variant="secondary"
-                                            onClick={() => fileInputRef.current?.click()}
-                                            className="gap-2 text-xs"
-                                        >
-                                            <Upload className="h-4 w-4" />
-                                            Pilih dari Galeri / File
-                                        </Button>
-
-                                        <input
-                                            ref={fileInputRef}
-                                            type="file"
-                                            accept="image/jpeg,image/png,image/webp,application/pdf"
-                                            onChange={handleFileChange}
-                                            className="hidden"
-                                        />
-
-                                        <span className="text-xs text-muted-foreground">
-                                            (Format: JPG, PNG, WEBP, atau PDF. Maks. 10MB)
-                                        </span>
-                                    </div>
-                                )}
-
-                                {form.errors.attachment && (
-                                    <p className="text-xs text-destructive">{form.errors.attachment}</p>
-                                )}
+                                </div>
                             </div>
 
                             <div className="flex justify-end pt-3">
@@ -321,7 +503,6 @@ export default function SiswaIzin({ student, leaves, todayDate }: IzinProps) {
                                             <TableHead>Jenis Izin</TableHead>
                                             <TableHead>Rentang Tanggal</TableHead>
                                             <TableHead>Alasan / Keterangan</TableHead>
-                                            <TableHead>Bukti Foto</TableHead>
                                             <TableHead className="text-center">Status Verifikasi</TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -336,31 +517,18 @@ export default function SiswaIzin({ student, leaves, todayDate }: IzinProps) {
                                                         {leave.type}
                                                     </Badge>
                                                 </TableCell>
-                                                <TableCell className="text-xs font-mono">
-                                                    {leave.start_date} s.d. {leave.end_date}
-                                                </TableCell>
-                                                <TableCell className="text-xs max-w-xs truncate">
-                                                    {leave.reason}
-                                                    {leave.rejection_reason && (
-                                                        <span className="block text-[11px] text-destructive mt-0.5">
-                                                            Catatan: {leave.rejection_reason}
-                                                        </span>
-                                                    )}
+                                                <TableCell className="text-xs whitespace-nowrap font-medium">
+                                                    {formatDateRangeIndo(leave.start_date, leave.end_date)}
                                                 </TableCell>
                                                 <TableCell>
-                                                    {leave.attachment_path ? (
-                                                        <a
-                                                            href={`/storage/${leave.attachment_path}`}
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            className="inline-flex items-center gap-1 text-xs text-primary hover:underline font-medium"
-                                                        >
-                                                            <ExternalLink className="h-3 w-3" />
-                                                            <span>Lihat Foto</span>
-                                                        </a>
-                                                    ) : (
-                                                        <span className="text-xs text-muted-foreground">-</span>
-                                                    )}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setSelectedDetailLeave({ ...leave, student })}
+                                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 transition-colors whitespace-nowrap"
+                                                    >
+                                                        <Eye className="h-3.5 w-3.5" />
+                                                        <span>Lihat Detail</span>
+                                                    </button>
                                                 </TableCell>
                                                 <TableCell className="text-center">
                                                     {leave.status === 'pending' && (
@@ -396,6 +564,13 @@ export default function SiswaIzin({ student, leaves, todayDate }: IzinProps) {
                 studentName={student?.name || 'Siswa'}
                 studentClass={student?.kelas || ''}
                 onCapture={handleCameraCapture}
+            />
+
+            {/* Detail Alasan Izin Modal */}
+            <LeaveDetailModal
+                isOpen={!!selectedDetailLeave}
+                onClose={() => setSelectedDetailLeave(null)}
+                leave={selectedDetailLeave}
             />
         </AppLayout>
     );

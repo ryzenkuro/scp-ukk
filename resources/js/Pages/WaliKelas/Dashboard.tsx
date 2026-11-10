@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import { AppLayout } from '@/Components/layout/AppLayout';
 import { Card, CardHeader, CardTitle, CardContent } from '@/Components/ui/card';
@@ -20,8 +20,11 @@ import {
   ArrowRight,
   BookOpen,
   ClipboardList,
-  FileText
+  FileText,
+  Eye
 } from 'lucide-react';
+import { formatDateRangeIndo } from '@/lib/utils';
+import { LeaveDetailModal, LeaveDetailData } from '@/Components/modals/LeaveDetailModal';
 
 interface LeaveItem {
   id: number;
@@ -51,6 +54,8 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ classNames = [], stats, config, recentLeaves = [] }: DashboardProps) {
+  const [selectedLeave, setSelectedLeave] = useState<LeaveDetailData | null>(null);
+
   return (
     <AppLayout title="Dashboard Wali Kelas">
       <Head title="Dashboard Wali Kelas" />
@@ -238,11 +243,18 @@ export default function Dashboard({ classNames = [], stats, config, recentLeaves
                           {leave.type}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {leave.start_date} {leave.end_date !== leave.start_date ? `s/d ${leave.end_date}` : ''}
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {formatDateRangeIndo(leave.start_date, leave.end_date)}
                       </TableCell>
-                      <TableCell className="max-w-xs truncate text-xs">
-                        {leave.reason}
+                      <TableCell>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedLeave(leave)}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 transition-colors whitespace-nowrap"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          <span>Lihat Detail</span>
+                        </button>
                       </TableCell>
                       <TableCell className="text-right">
                         <Link href="/wali-kelas/izin">
@@ -259,6 +271,12 @@ export default function Dashboard({ classNames = [], stats, config, recentLeaves
           </div>
         </Card>
       </div>
+
+      <LeaveDetailModal
+        isOpen={!!selectedLeave}
+        onClose={() => setSelectedLeave(null)}
+        leave={selectedLeave}
+      />
     </AppLayout>
   );
 }

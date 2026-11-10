@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { AppLayout } from '@/Components/layout/AppLayout';
 import { Card, CardHeader, CardTitle, CardContent } from '@/Components/ui/card';
@@ -20,8 +20,12 @@ import {
     Calendar,
     Users,
     ArrowLeft,
-    Save
+    Save,
+    Camera,
+    Upload,
+    Trash2,
 } from 'lucide-react';
+import { JournalCameraModal } from '@/Components/camera/JournalCameraModal';
 
 interface SiswaItem {
     id: number;
@@ -29,6 +33,17 @@ interface SiswaItem {
     name: string;
     kelas: string;
     gender: 'L' | 'P';
+}
+
+interface ApprovedLeaveItem {
+    id: number;
+    student_id: number;
+    type: 'sakit' | 'izin';
+    status?: 'approved' | 'rejected' | 'pending';
+    start_date: string;
+    end_date: string;
+    reason: string | null;
+    rejection_reason?: string | null;
 }
 
 interface ScheduleItem {
@@ -46,6 +61,7 @@ interface CreateProps {
     schedules: ScheduleItem[];
     selectedSchedule: ScheduleItem | null;
     students: SiswaItem[];
+    approvedLeaves?: ApprovedLeaveItem[];
     todayDate: string;
     activeCycle: number;
 }
@@ -54,26 +70,97 @@ export default function JournalCreate({
     schedules = [],
     selectedSchedule,
     students = [],
+    approvedLeaves = [],
     todayDate,
     activeCycle,
 }: CreateProps) {
-    // Initialize attendances for all students defaulting to 'hadir'
-    const initialAttendances = students.map((s) => ({
-        student_id: s.id,
-        status: 'hadir' as 'hadir' | 'sakit' | 'izin' | 'alpa',
-        notes: '',
-    }));
+    const getApprovedLeave = (studentId: number, dateStr: string) => {
+        return approvedLeaves?.find(
+            (l) => l.student_id === studentId && dateStr >= l.start_date && dateStr <= (l.end_date || l.start_date)
+        );
+    };
 
-    const form = useForm({
+    const [isCameraOpen, setIsCameraOpen] = useState(false);
+    const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+    // Initialize attendances for all students
+    const initialAttendances = students.map((s) => {
+        const leave = getApprovedLeave(s.id, todayDate);
+        let status: 'hadir' | 'sakit' | 'izin' | 'alpa' = 'hadir';
+        let notes = '';
+
+        if (leave) {
+            if (leave.status === 'rejected') {
+                status = 'alpa';
+                notes = `Izin ditolak: ${leave.rejection_reason || 'Tidak disetujui wali kelas'}`;
+            } else {
+                status = leave.type === 'sakit' ? 'sakit' : 'izin';
+                notes = `Izin terverifikasi: ${leave.reason || ''}`;
+            }
+        }
+
+        return {
+            student_id: s.id,
+            status,
+            notes,
+        };
+    });
+
+    const form = useForm<{
+        schedule_id: string;
+        date: string;
+        topic: string;
+        notes: string;
+        documentation: File | null;
+        attendances: Array<{
+            student_id: number;
+            status: 'hadir' | 'sakit' | 'izin' | 'alpa';
+            notes: string;
+        }>;
+    }>({
         schedule_id: selectedSchedule?.id?.toString() || '',
         date: todayDate,
         topic: '',
         notes: '',
+        documentation: null,
         attendances: initialAttendances,
     });
 
     const handleScheduleChange = (scheduleId: string) => {
-        router.get('/guru/journal/create', { schedule_id: scheduleId });
+        router.get('/guru/journal/create', { schedule_id: scheduleId, date: form.data.date });
+    };
+
+    const handleCameraCapture = (file: File, previewUrl: string) => {
+        form.setData('documentation', file);
+        form.clearErrors('documentation');
+        if (photoPreviewUrl) {
+            URL.revokeObjectURL(photoPreviewUrl);
+        }
+        setPhotoPreviewUrl(previewUrl);
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        form.setData('documentation', file);
+        form.clearErrors('documentation');
+        if (photoPreviewUrl) {
+            URL.revokeObjectURL(photoPreviewUrl);
+        }
+        setPhotoPreviewUrl(URL.createObjectURL(file));
+    };
+
+    const handleRemovePhoto = () => {
+        form.setData('documentation', null);
+        if (photoPreviewUrl) {
+            URL.revokeObjectURL(photoPreviewUrl);
+        }
+        setPhotoPreviewUrl(null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
     };
 
     const setStudentStatus = (index: number, status: 'hadir' | 'sakit' | 'izin' | 'alpa') => {
@@ -83,10 +170,17 @@ export default function JournalCreate({
     };
 
     const setAllHadir = () => {
-        const next = form.data.attendances.map((att) => ({
-            ...att,
-            status: 'hadir' as const,
-        }));
+        const next = form.data.attendances.map((att) => {
+            const leave = getApprovedLeave(att.student_id, form.data.date);
+            if (leave) {
+                // Siswa berizin resmi yang disetujui wali kelas tidak tertimpa hadir
+                return att;
+            }
+            return {
+                ...att,
+                status: 'hadir' as const,
+            };
+        });
         form.setData('attendances', next);
     };
 
@@ -96,7 +190,13 @@ export default function JournalCreate({
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
-        form.post('/guru/journal');
+        if (!form.data.documentation) {
+            form.setError('documentation', 'Dokumentasi foto kegiatan KBM wajib dilampirkan (bisa foto langsung atau unggah file).');
+            return;
+        }
+        form.post('/guru/journal', {
+            forceFormData: true,
+        });
     };
 
     return (
@@ -190,6 +290,106 @@ export default function JournalCreate({
                                 placeholder="Catatan tambahan mengenai jalannya kelas atau tugas siswa..."
                             />
                         </div>
+
+                        {/* Dokumentasi Foto KBM (Wajib) */}
+                        <div className="space-y-2.5 pt-3 border-t border-border">
+                            <div className="flex items-center justify-between">
+                                <Label className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                                    <Camera className="h-4 w-4 text-primary" />
+                                    <span>Dokumentasi Foto KBM</span>
+                                    <span className="text-destructive">*</span>
+                                </Label>
+                                {photoPreviewUrl && (
+                                    <Badge variant="outline" className="text-emerald-700 border-emerald-300 bg-emerald-50 dark:bg-emerald-950 dark:text-emerald-300 text-[11px] font-semibold">
+                                        Foto Terlampir
+                                    </Badge>
+                                )}
+                            </div>
+
+                            <p className="text-xs text-muted-foreground">
+                                Ambil foto kegiatan pembelajaran secara langsung dengan kamera atau unggah berkas foto (JPG, PNG, WEBP, Maks. 10MB).
+                            </p>
+
+                            {photoPreviewUrl ? (
+                                <div className="space-y-2 max-w-md">
+                                    <div className="relative rounded-xl overflow-hidden border border-border bg-slate-950 aspect-video flex items-center justify-center shadow-xs">
+                                        <img
+                                            src={photoPreviewUrl}
+                                            alt="Pratinjau Dokumentasi KBM"
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </div>
+                                    <div className="flex items-center gap-2 pt-1">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setIsCameraOpen(true)}
+                                            className="gap-1.5 text-xs h-8 flex-1"
+                                        >
+                                            <Camera className="h-3.5 w-3.5" />
+                                            Foto Ulang (Kamera)
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="gap-1.5 text-xs h-8 flex-1"
+                                        >
+                                            <Upload className="h-3.5 w-3.5" />
+                                            Ganti Berkas
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="destructive"
+                                            size="sm"
+                                            onClick={handleRemovePhoto}
+                                            className="gap-1.5 text-xs h-8"
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                            Hapus
+                                        </Button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col sm:flex-row items-center gap-3 p-4 rounded-xl border-2 border-dashed border-border bg-muted/20">
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        onClick={() => setIsCameraOpen(true)}
+                                        className="gap-2 text-xs font-semibold h-10 w-full sm:w-auto"
+                                    >
+                                        <Camera className="h-4 w-4 text-primary" />
+                                        Buka Kamera (Live)
+                                    </Button>
+
+                                    <span className="text-xs text-muted-foreground font-medium">atau</span>
+
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="gap-2 text-xs font-semibold h-10 w-full sm:w-auto bg-card"
+                                    >
+                                        <Upload className="h-4 w-4 text-primary" />
+                                        Pilih File Foto
+                                    </Button>
+                                </div>
+                            )}
+
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp"
+                                onChange={handleFileChange}
+                                className="hidden"
+                            />
+
+                            {form.errors.documentation && (
+                                <p className="text-xs text-destructive font-medium">{form.errors.documentation}</p>
+                            )}
+                        </div>
                     </CardContent>
                 </Card>
 
@@ -258,53 +458,98 @@ export default function JournalCreate({
                                     </TableHeader>
                                     <TableBody>
                                         {students.map((student, idx) => {
-                                            const currentStatus = form.data.attendances[idx]?.status || 'hadir';
+                                            const leave = getApprovedLeave(student.id, form.data.date);
+                                            const isVerifiedLeave = !!leave;
+                                            const isRejected = leave?.status === 'rejected';
+                                            const currentStatus = isVerifiedLeave
+                                                ? (isRejected ? 'alpa' : leave.type)
+                                                : (form.data.attendances[idx]?.status || 'hadir');
 
                                             return (
-                                                <TableRow key={student.id}>
+                                                <TableRow
+                                                    key={student.id}
+                                                    className={isVerifiedLeave ? "bg-slate-100/70 dark:bg-slate-800/40 text-muted-foreground select-none" : ""}
+                                                >
                                                     <TableCell className="text-center font-mono text-xs">
                                                         {idx + 1}
                                                     </TableCell>
                                                     <TableCell className="font-mono text-xs font-semibold">
                                                         {student.nis}
                                                     </TableCell>
-                                                    <TableCell className="font-medium text-foreground">
-                                                        {student.name}
+                                                    <TableCell className="font-medium">
+                                                        <span className={isVerifiedLeave ? "text-slate-500 dark:text-slate-400 font-medium" : "text-foreground"}>
+                                                            {student.name}
+                                                        </span>
                                                     </TableCell>
                                                     <TableCell className="text-center text-xs">
                                                         {student.gender === 'L' ? 'L' : 'P'}
                                                     </TableCell>
                                                     <TableCell className="text-center">
-                                                        <div className="inline-flex rounded-lg border border-border bg-muted p-0.5 text-xs">
+                                                        <div className={`inline-flex rounded-lg border border-border p-0.5 text-xs ${isVerifiedLeave ? 'bg-muted/80 opacity-70 cursor-not-allowed select-none' : 'bg-muted'}`}>
                                                             <button
                                                                 type="button"
-                                                                onClick={() => setStudentStatus(idx, 'hadir')}
-                                                                className={`rounded-md px-2.5 py-1 font-semibold transition-colors ${currentStatus === 'hadir' ? 'bg-secondary text-secondary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                                                                disabled={isVerifiedLeave}
+                                                                onClick={() => !isVerifiedLeave && setStudentStatus(idx, 'hadir')}
+                                                                className={`rounded-md px-2.5 py-1 font-semibold transition-colors ${
+                                                                    currentStatus === 'hadir'
+                                                                        ? isVerifiedLeave
+                                                                            ? 'bg-slate-300 text-slate-800 dark:bg-slate-700 dark:text-slate-200 shadow-sm'
+                                                                            : 'bg-secondary text-secondary-foreground shadow-sm'
+                                                                        : 'text-muted-foreground'
+                                                                } ${isVerifiedLeave ? 'cursor-not-allowed' : 'hover:text-foreground'}`}
                                                             >
                                                                 Hadir (H)
                                                             </button>
                                                             <button
                                                                 type="button"
-                                                                onClick={() => setStudentStatus(idx, 'sakit')}
-                                                                className={`rounded-md px-2.5 py-1 font-semibold transition-colors ${currentStatus === 'sakit' ? 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200 shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                                                                disabled={isVerifiedLeave}
+                                                                onClick={() => !isVerifiedLeave && setStudentStatus(idx, 'sakit')}
+                                                                className={`rounded-md px-2.5 py-1 font-semibold transition-colors ${
+                                                                    currentStatus === 'sakit'
+                                                                        ? isVerifiedLeave
+                                                                            ? 'bg-slate-300 text-slate-900 dark:bg-slate-700 dark:text-slate-100 font-bold shadow-sm'
+                                                                            : 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200 shadow-sm'
+                                                                        : 'text-muted-foreground'
+                                                                } ${isVerifiedLeave ? 'cursor-not-allowed' : 'hover:text-foreground'}`}
                                                             >
                                                                 Sakit (S)
                                                             </button>
                                                             <button
                                                                 type="button"
-                                                                onClick={() => setStudentStatus(idx, 'izin')}
-                                                                className={`rounded-md px-2.5 py-1 font-semibold transition-colors ${currentStatus === 'izin' ? 'bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-200 shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                                                                disabled={isVerifiedLeave}
+                                                                onClick={() => !isVerifiedLeave && setStudentStatus(idx, 'izin')}
+                                                                className={`rounded-md px-2.5 py-1 font-semibold transition-colors ${
+                                                                    currentStatus === 'izin'
+                                                                        ? isVerifiedLeave
+                                                                            ? 'bg-slate-300 text-slate-900 dark:bg-slate-700 dark:text-slate-100 font-bold shadow-sm'
+                                                                            : 'bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-200 shadow-sm'
+                                                                        : 'text-muted-foreground'
+                                                                } ${isVerifiedLeave ? 'cursor-not-allowed' : 'hover:text-foreground'}`}
                                                             >
                                                                 Izin (I)
                                                             </button>
                                                             <button
                                                                 type="button"
-                                                                onClick={() => setStudentStatus(idx, 'alpa')}
-                                                                className={`rounded-md px-2.5 py-1 font-semibold transition-colors ${currentStatus === 'alpa' ? 'bg-destructive text-destructive-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                                                                disabled={isVerifiedLeave}
+                                                                onClick={() => !isVerifiedLeave && setStudentStatus(idx, 'alpa')}
+                                                                className={`rounded-md px-2.5 py-1 font-semibold transition-colors ${
+                                                                    currentStatus === 'alpa'
+                                                                        ? isVerifiedLeave
+                                                                            ? 'bg-destructive text-destructive-foreground font-bold shadow-sm'
+                                                                            : 'bg-destructive text-destructive-foreground shadow-sm'
+                                                                        : 'text-muted-foreground'
+                                                                } ${isVerifiedLeave ? 'cursor-not-allowed' : 'hover:text-foreground'}`}
                                                             >
                                                                 Alpa (A)
                                                             </button>
                                                         </div>
+                                                        {isVerifiedLeave && (
+                                                            <p className="text-[10px] text-muted-foreground mt-0.5 italic">
+                                                                {isRejected
+                                                                    ? `*Terkunci: surat izin ditolak wali kelas (${leave.rejection_reason || 'Tidak disetujui'})`
+                                                                    : '*Terkunci: surat izin telah disetujui wali kelas'}
+                                                            </p>
+                                                        )}
                                                     </TableCell>
                                                 </TableRow>
                                             );
@@ -316,6 +561,14 @@ export default function JournalCreate({
                     </CardContent>
                 </Card>
             </form>
+
+            <JournalCameraModal
+                open={isCameraOpen}
+                onOpenChange={setIsCameraOpen}
+                title="Foto Dokumentasi KBM"
+                classNameInfo={`${selectedSchedule?.class_name || ''} • ${selectedSchedule?.subject || ''}`}
+                onCapture={handleCameraCapture}
+            />
         </AppLayout>
     );
 }

@@ -8,8 +8,11 @@ use App\Models\LeaveRequest;
 use App\Models\Schedule;
 use App\Models\Siswa;
 use App\Models\SystemConfiguration;
+use App\Models\TimeSlot;
+use App\Services\AttendanceSyncService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -34,6 +37,9 @@ class PortalController extends Controller
             'Sunday' => 'Minggu',
         ];
         $currentDay = $dayMap[date('l')] ?? 'Senin';
+
+        // Pastikan izin yang disetujui tersinkron ke rekapan pribadi siswa
+        AttendanceSyncService::syncAllApprovedLeaves($student?->id);
 
         // Rekap kehadiran siswa pribadi
         $attendances = Attendance::where('student_id', $student?->id)->get();
@@ -78,6 +84,8 @@ class PortalController extends Controller
             'config' => [
                 'active_cycle' => $config->active_cycle,
                 'academic_year' => $config->academic_year,
+                'ceremony_cycle_1' => (bool) $config->ceremony_cycle_1,
+                'ceremony_cycle_2' => (bool) $config->ceremony_cycle_2,
             ],
         ]);
     }
@@ -91,13 +99,29 @@ class PortalController extends Controller
         $student = $user->student ?? Siswa::where('status', 'aktif')->first();
         $config = SystemConfiguration::current();
 
+        $dayMap = [
+            'Monday' => 'Senin',
+            'Tuesday' => 'Selasa',
+            'Wednesday' => 'Rabu',
+            'Thursday' => 'Kamis',
+            'Friday' => 'Jumat',
+            'Saturday' => 'Sabtu',
+            'Sunday' => 'Minggu',
+        ];
+        $todayName = $dayMap[date('l')] ?? 'Senin';
+
         $cycle = $request->input('cycle', (string) $config->active_cycle);
+
+        $driver = DB::connection()->getDriverName();
+        $dayOrderRaw = ($driver === 'mysql' || $driver === 'mariadb')
+            ? "FIELD(day_of_week, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat')"
+            : "CASE day_of_week WHEN 'Senin' THEN 1 WHEN 'Selasa' THEN 2 WHEN 'Rabu' THEN 3 WHEN 'Kamis' THEN 4 WHEN 'Jumat' THEN 5 ELSE 6 END";
 
         $schedules = [];
         if ($student) {
             $query = Schedule::with(['teacher', 'room', 'startSlot', 'endSlot'])
                 ->where('class_name', $student->kelas)
-                ->orderBy('day_of_week')
+                ->orderByRaw($dayOrderRaw)
                 ->orderBy('start_time');
 
             if ($cycle !== 'all') {
@@ -107,13 +131,19 @@ class PortalController extends Controller
             $schedules = $query->get();
         }
 
+        $timeSlots = TimeSlot::orderBy('order')->get();
+
         return Inertia::render('Siswa/Jadwal', [
             'student' => $student,
             'schedules' => $schedules,
+            'timeSlots' => $timeSlots,
+            'todayName' => $todayName,
             'activeCycle' => (int) $cycle,
             'config' => [
                 'active_cycle' => $config->active_cycle,
                 'academic_year' => $config->academic_year,
+                'ceremony_cycle_1' => (bool) $config->ceremony_cycle_1,
+                'ceremony_cycle_2' => (bool) $config->ceremony_cycle_2,
             ],
         ]);
     }
@@ -145,7 +175,7 @@ class PortalController extends Controller
         $user = auth()->user();
         $student = $user->student ?? Siswa::where('status', 'aktif')->first();
 
-        if (!$student) {
+        if (! $student) {
             return back()->with('error', 'Profil siswa tidak ditemukan.');
         }
 
@@ -154,13 +184,32 @@ class PortalController extends Controller
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'reason' => ['required', 'string', 'max:500'],
+            'selfie' => ['required', 'file', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
             'attachment' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:10240'],
         ], [
-            'attachment.required' => 'Bukti foto atau surat keterangan wajib dilampirkan.',
-            'end_date.after_or_equal' => 'Tanggal selesai izin harus sama atau setelah tanggal mulai.',
-            'attachment.mimes' => 'Format file bukti harus berupa JPG, PNG, WEBP, atau PDF.',
-            'attachment.max' => 'Ukuran file bukti maksimal 10MB.',
+            'selfie.required' => 'Foto selfie realtime wajib diambil / dilampirkan.',
+            'selfie.mimes' => 'Format foto selfie harus berupa JPG, PNG, atau WEBP.',
+            'selfie.max' => 'Ukuran foto selfie maksimal 10MB.',
+            'attachment.required' => 'Surat keterangan sakit/dokter atau surat izin wajib diunggah.',
+            'attachment.mimes' => 'Format surat keterangan harus berupa JPG, PNG, WEBP, atau PDF.',
+            'attachment.max' => 'Ukuran berkas surat keterangan maksimal 10MB.',
+            'end_date.after_or_equal' => 'Sampai tanggal tidak boleh lebih awal dari mulai tanggal.',
         ]);
+
+        if ($request->hasFile('selfie') && $request->hasFile('attachment')) {
+            $selfieHash = hash_file('sha256', $request->file('selfie')->getRealPath());
+            $attachmentHash = hash_file('sha256', $request->file('attachment')->getRealPath());
+            if ($selfieHash === $attachmentHash) {
+                return back()->withErrors([
+                    'attachment' => 'Berkas surat keterangan tidak boleh sama dengan foto selfie. Harap unggah foto fisik surat keterangan atau file PDF asli.',
+                ])->withInput();
+            }
+        }
+
+        $selfiePath = null;
+        if ($request->hasFile('selfie')) {
+            $selfiePath = $request->file('selfie')->store('leave_selfies', 'public');
+        }
 
         $attachmentPath = null;
         if ($request->hasFile('attachment')) {
@@ -173,6 +222,7 @@ class PortalController extends Controller
             'start_date' => $validated['start_date'],
             'end_date' => $validated['end_date'],
             'reason' => $validated['reason'],
+            'selfie_path' => $selfiePath,
             'attachment_path' => $attachmentPath,
             'status' => 'pending',
         ]);
@@ -192,25 +242,32 @@ class PortalController extends Controller
             ? (int) $request->cycle
             : $config->active_cycle;
 
+        $driver = DB::connection()->getDriverName();
+        $dayOrderRaw = ($driver === 'mysql' || $driver === 'mariadb')
+            ? "FIELD(day_of_week, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat')"
+            : "CASE day_of_week WHEN 'Senin' THEN 1 WHEN 'Selasa' THEN 2 WHEN 'Rabu' THEN 3 WHEN 'Kamis' THEN 4 WHEN 'Jumat' THEN 5 ELSE 6 END";
+
         $jadwals = [];
         if ($student) {
             $jadwals = Schedule::with(['teacher', 'room', 'startSlot', 'endSlot', 'schoolClass'])
                 ->where('class_name', $student->kelas)
                 ->where('cycle_number', $activeCycle)
-                ->orderBy('day_of_week')
+                ->orderByRaw($dayOrderRaw)
                 ->orderBy('start_time')
                 ->get();
         }
 
+        $hasCeremony = ($activeCycle === 2) ? (bool) $config->ceremony_cycle_2 : (bool) $config->ceremony_cycle_1;
+
         return view('pdf.jadwal', [
             'documentTitle' => 'JADWAL BELAJAR SISWA',
-            'pageTitle' => 'Jadwal Belajar - ' . ($student?->name ?? 'Siswa'),
+            'pageTitle' => 'Jadwal Belajar - '.($student?->name ?? 'Siswa'),
             'academicYear' => $config->academic_year,
             'activeCycle' => $activeCycle,
             'filterClass' => $student?->kelas,
             'studentName' => $student?->name,
             'jadwals' => $jadwals,
+            'hasCeremony' => $hasCeremony,
         ]);
     }
 }
-

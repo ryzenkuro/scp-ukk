@@ -130,7 +130,24 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-900">
+                    @if(!empty($hasCeremony))
+                    <tr class="bg-red-50 text-red-950 font-semibold">
+                        <td class="border border-slate-900 px-3 py-2 text-center font-bold text-red-700">*</td>
+                        <td class="border border-slate-900 px-3 py-2 font-bold text-red-700">Senin</td>
+                        <td class="border border-slate-900 px-3 py-2 whitespace-nowrap font-mono text-[11px] text-red-800">
+                            07:15 - 08:00 WIB
+                        </td>
+                        <td class="border border-slate-900 px-3 py-2 font-bold text-red-900">Upacara Bendera</td>
+                        <td class="border border-slate-900 px-3 py-2 text-red-800">Seluruh Guru & Tendik</td>
+                        <td class="border border-slate-900 px-3 py-2 text-center text-red-800">Semua Kelas</td>
+                        <td class="border border-slate-900 px-3 py-2 text-center text-red-800">Lapangan Upacara</td>
+                        <td class="border border-slate-900 px-3 py-2 text-center text-red-800">Putaran {{ $activeCycle ?? 1 }}</td>
+                    </tr>
+                    @endif
                     @forelse($jadwals as $index => $j)
+                    @if(!empty($hasCeremony) && $j->day_of_week === 'Senin' && substr($j->start_time, 0, 5) === '07:15')
+                        @continue
+                    @endif
                     <tr class="{{ $index % 2 === 1 ? 'bg-slate-50/70' : 'bg-white' }}">
                         <td class="border border-slate-900 px-3 py-2 text-center font-medium">{{ $index + 1 }}</td>
                         <td class="border border-slate-900 px-3 py-2 font-bold text-slate-900">{{ $j->day_of_week }}</td>

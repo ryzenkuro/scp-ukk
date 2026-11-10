@@ -6,10 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\HomeroomAssignment;
 use App\Models\LeaveRequest;
+use App\Models\Schedule;
+use App\Models\SchoolClass;
 use App\Models\Siswa;
 use App\Models\SystemConfiguration;
+use App\Models\TimeSlot;
+use App\Services\AttendanceSyncService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -21,16 +26,45 @@ class WaliKelasPortalController extends Controller
     protected function getAssignedClassNames(): array
     {
         $user = auth()->user();
+        if (! $user) {
+            return [];
+        }
+
+        // 1. Dari homeroom_assignments
         $classNames = HomeroomAssignment::where('user_id', $user->id)
             ->pluck('class_name')
             ->toArray();
 
-        // Fallback jika role user adalah wali_kelas dan memiliki relasi schoolClass langsung
+        // 2. Dari pivot user_school_classes
+        if (empty($classNames)) {
+            $classNames = DB::table('user_school_classes')
+                ->join('school_classes', 'user_school_classes.school_class_id', '=', 'school_classes.id')
+                ->where('user_school_classes.user_id', $user->id)
+                ->pluck('school_classes.name')
+                ->toArray();
+        }
+
+        // 3. Fallback jika ada relasi schoolClass atau class_id
         if (empty($classNames) && $user->schoolClass?->name) {
             $classNames[] = $user->schoolClass->name;
         }
 
-        return $classNames;
+        if (empty($classNames) && $user->class_id) {
+            $c = SchoolClass::find($user->class_id);
+            if ($c) {
+                $classNames[] = $c->name;
+            }
+        }
+
+        // 4. Default ke XII RPL 2 untuk wali kelas jika belum ada penugasan eksplisit
+        if (empty($classNames)) {
+            $classNames[] = 'XII RPL 2';
+        }
+
+        $assigned = array_values(array_unique(array_filter($classNames)));
+
+        // Wali Kelas maksimal hanya membina 1 kelas binaan
+        return [end($assigned) ?: 'XII RPL 2'];
     }
 
     /**
@@ -77,6 +111,63 @@ class WaliKelasPortalController extends Controller
     }
 
     /**
+     * Tampilkan jadwal pembelajaran kelas binaan wali kelas (berbasis hari & Jam Ke-1 s.d. Ke-10)
+     */
+    public function jadwal(Request $request): Response
+    {
+        $classNames = $this->getAssignedClassNames();
+        $config = SystemConfiguration::current();
+
+        $dayMap = [
+            'Monday' => 'Senin',
+            'Tuesday' => 'Selasa',
+            'Wednesday' => 'Rabu',
+            'Thursday' => 'Kamis',
+            'Friday' => 'Jumat',
+            'Saturday' => 'Sabtu',
+            'Sunday' => 'Minggu',
+        ];
+        $todayName = $dayMap[date('l')] ?? 'Senin';
+
+        // Kelas yang dipilih (default ke kelas pertama binaan)
+        $defaultClass = $classNames[0] ?? 'XI RPL 1';
+        $selectedClass = $request->input('kelas', $defaultClass);
+        $cycle = $request->input('cycle', (string) $config->active_cycle);
+
+        $driver = DB::connection()->getDriverName();
+        $dayOrderRaw = ($driver === 'mysql' || $driver === 'mariadb')
+            ? "FIELD(day_of_week, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat')"
+            : "CASE day_of_week WHEN 'Senin' THEN 1 WHEN 'Selasa' THEN 2 WHEN 'Rabu' THEN 3 WHEN 'Kamis' THEN 4 WHEN 'Jumat' THEN 5 ELSE 6 END";
+
+        $query = Schedule::with(['teacher', 'schoolClass', 'room', 'startSlot', 'endSlot'])
+            ->where('class_name', $selectedClass)
+            ->orderByRaw($dayOrderRaw)
+            ->orderBy('start_time');
+
+        if ($cycle !== 'all') {
+            $query->where('cycle_number', (int) $cycle);
+        }
+
+        $schedules = $query->get();
+        $timeSlots = TimeSlot::orderBy('order')->get();
+
+        return Inertia::render('WaliKelas/Jadwal', [
+            'classNames' => $classNames,
+            'selectedClass' => $selectedClass,
+            'schedules' => $schedules,
+            'timeSlots' => $timeSlots,
+            'todayName' => $todayName,
+            'activeCycle' => (int) $cycle,
+            'config' => [
+                'active_cycle' => $config->active_cycle,
+                'academic_year' => $config->academic_year,
+                'ceremony_cycle_1' => (bool) $config->ceremony_cycle_1,
+                'ceremony_cycle_2' => (bool) $config->ceremony_cycle_2,
+            ],
+        ]);
+    }
+
+    /**
      * Daftar Siswa Kelas Binaan (Read-only, tanpa aksi reset kata sandi)
      */
     public function siswa(Request $request): Response
@@ -92,7 +183,7 @@ class WaliKelasPortalController extends Controller
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('nis', 'like', "%{$search}%");
+                    ->orWhere('nis', 'like', "%{$search}%");
             });
         }
 
@@ -134,16 +225,16 @@ class WaliKelasPortalController extends Controller
         if ($search) {
             $query->whereHas('student', function ($sq) use ($search) {
                 $sq->where('name', 'like', "%{$search}%")
-                   ->orWhere('nis', 'like', "%{$search}%");
+                    ->orWhere('nis', 'like', "%{$search}%");
             });
         }
 
         $leaves = $query->paginate(15)->withQueryString();
 
         $stats = [
-            'pending' => LeaveRequest::whereHas('student', fn($sq) => $sq->whereIn('kelas', $classNames))->where('status', 'pending')->count(),
-            'approved' => LeaveRequest::whereHas('student', fn($sq) => $sq->whereIn('kelas', $classNames))->where('status', 'approved')->count(),
-            'rejected' => LeaveRequest::whereHas('student', fn($sq) => $sq->whereIn('kelas', $classNames))->where('status', 'rejected')->count(),
+            'pending' => LeaveRequest::whereHas('student', fn ($sq) => $sq->whereIn('kelas', $classNames))->where('status', 'pending')->count(),
+            'approved' => LeaveRequest::whereHas('student', fn ($sq) => $sq->whereIn('kelas', $classNames))->where('status', 'approved')->count(),
+            'rejected' => LeaveRequest::whereHas('student', fn ($sq) => $sq->whereIn('kelas', $classNames))->where('status', 'rejected')->count(),
         ];
 
         return Inertia::render('WaliKelas/Izin', [
@@ -165,7 +256,7 @@ class WaliKelasPortalController extends Controller
     {
         $classNames = $this->getAssignedClassNames();
 
-        if (!in_array($leave->student?->kelas, $classNames, true)) {
+        if (! in_array($leave->student?->kelas, $classNames, true)) {
             abort(403, 'Akses Ditolak: Anda hanya berwenang memverifikasi izin siswa di kelas binaan Anda.');
         }
 
@@ -181,6 +272,9 @@ class WaliKelasPortalController extends Controller
             'rejection_reason' => $validated['rejection_reason'] ?? null,
         ]);
 
+        // Sinkronkan ke tabel presensi (attendances)
+        AttendanceSyncService::syncLeaveRequest($leave);
+
         $statusText = $validated['status'] === 'approved' ? 'disetujui' : 'ditolak';
 
         return back()->with('success', "Permohonan izin siswa {$leave->student?->name} ({$leave->student?->kelas}) berhasil {$statusText}.");
@@ -191,10 +285,16 @@ class WaliKelasPortalController extends Controller
      */
     public function presensi(Request $request): Response
     {
+        // Pastikan seluruh izin yang disetujui tersinkron ke tabel presensi
+        AttendanceSyncService::syncAllApprovedLeaves();
+
         $classNames = $this->getAssignedClassNames();
         $selectedClass = $request->input('kelas', $classNames[0] ?? '');
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
+        if ($startDate && $endDate && $endDate < $startDate) {
+            $endDate = $startDate;
+        }
 
         $students = Siswa::where('kelas', $selectedClass)
             ->where('status', 'aktif')
@@ -266,4 +366,3 @@ class WaliKelasPortalController extends Controller
         ]);
     }
 }
-

@@ -1,9 +1,9 @@
 import React from 'react';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
-import { School, Sparkles } from 'lucide-react';
+import { School } from 'lucide-react';
 
 interface LoginProps {
     status?: string;
@@ -11,6 +11,9 @@ interface LoginProps {
 }
 
 export default function Login({ status }: LoginProps) {
+    const { flash } = usePage<any>().props;
+    const successMessage = flash?.success || flash?.status || status;
+
     const { data, setData, post, processing, errors, reset } = useForm({
         username: '',
         password: '',
@@ -41,19 +44,11 @@ export default function Login({ status }: LoginProps) {
                     </p>
                 </div>
 
-                {status && (
-                    <div className="w-full rounded-md bg-secondary p-3 text-xs text-secondary-foreground">
-                        {status}
+                {successMessage && (
+                    <div className="w-full rounded-md bg-emerald-500/10 border border-emerald-500/20 p-3 text-xs text-emerald-700 dark:text-emerald-400 font-medium text-center">
+                        {successMessage}
                     </div>
                 )}
-
-                {/* Info Default Credentials */}
-                <div className="w-full flex items-start gap-2.5 rounded-lg border border-border bg-muted/50 p-3 text-xs text-muted-foreground">
-                    <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-foreground" />
-                    <div>
-                        <span className="font-semibold text-foreground">Akun Baru:</span> Siswa gunakan NIS, Orang Tua gunakan <code className="rounded bg-muted px-1.5 py-0.5 font-bold text-foreground">ortu_[NIS]</code>. Password awal default: <code className="rounded bg-muted px-1.5 py-0.5 font-bold text-foreground">smkn1bantul2026</code>.
-                    </div>
-                </div>
 
                 {/* Form Input */}
                 <form className="w-full space-y-4" onSubmit={submit}>
@@ -101,6 +96,12 @@ export default function Login({ status }: LoginProps) {
                             />
                             <span>Ingat saya</span>
                         </label>
+                        <Link
+                            href="/forgot-password"
+                            className="text-primary hover:underline font-medium"
+                        >
+                            *Lupa sandi?
+                        </Link>
                     </div>
 
                     <Button

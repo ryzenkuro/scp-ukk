@@ -13,13 +13,6 @@ import {
   TableRow,
   TableCell,
 } from '@/Components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/Components/ui/dialog';
 import { 
   ClipboardList, 
   Search, 
@@ -27,13 +20,13 @@ import {
   CheckCircle2, 
   XCircle, 
   Clock, 
-  ExternalLink,
-  FileText,
-  Printer,
-  Calendar,
-  RotateCcw,
+  Printer, 
+  Calendar, 
+  RotateCcw, 
   Eye
 } from 'lucide-react';
+import { formatDateRangeIndo } from '@/lib/utils';
+import { LeaveDetailModal, LeaveDetailData } from '@/Components/modals/LeaveDetailModal';
 
 interface LeaveItem {
   id: number;
@@ -92,7 +85,7 @@ export default function Izin({ leaves, kelasList = [], stats, filters }: IzinPro
   const [startDate, setStartDate] = useState(filters.start_date || '');
   const [endDate, setEndDate] = useState(filters.end_date || '');
 
-  const [previewAttachment, setPreviewAttachment] = useState<string | null>(null);
+  const [selectedDetailLeave, setSelectedDetailLeave] = useState<LeaveDetailData | null>(null);
 
   const handleFilter = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -288,7 +281,13 @@ export default function Izin({ leaves, kelasList = [], stats, filters }: IzinPro
               <Input
                 type="date"
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setStartDate(val);
+                  if (endDate && val && endDate < val) {
+                    setEndDate(val);
+                  }
+                }}
                 className="h-9"
               />
             </div>
@@ -300,7 +299,16 @@ export default function Izin({ leaves, kelasList = [], stats, filters }: IzinPro
               <Input
                 type="date"
                 value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
+                min={startDate || undefined}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const minAllowed = startDate;
+                  if (minAllowed && val && val < minAllowed) {
+                    setEndDate(minAllowed);
+                  } else {
+                    setEndDate(val);
+                  }
+                }}
                 className="h-9"
               />
             </div>
@@ -362,14 +370,13 @@ export default function Izin({ leaves, kelasList = [], stats, filters }: IzinPro
                   <TableHead className="w-24 text-center">Jenis</TableHead>
                   <TableHead className="w-36">Periode Izin</TableHead>
                   <TableHead>Alasan / Keterangan</TableHead>
-                  <TableHead className="w-24 text-center">Surat Bukti</TableHead>
                   <TableHead className="w-44">Status & Verifikator</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {leaves.data.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
+                    <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
                       Tidak ada permohonan izin siswa yang ditemukan pada kriteria filter ini.
                     </TableCell>
                   </TableRow>
@@ -391,34 +398,18 @@ export default function Izin({ leaves, kelasList = [], stats, filters }: IzinPro
                       <TableCell className="text-center">
                         {getTypeBadge(leave.type)}
                       </TableCell>
-                      <TableCell className="text-xs">
-                        <div className="font-medium">{leave.start_date}</div>
-                        {leave.start_date !== leave.end_date && (
-                          <div className="text-muted-foreground">s/d {leave.end_date}</div>
-                        )}
+                      <TableCell className="text-xs whitespace-nowrap">
+                        <div className="font-medium">{formatDateRangeIndo(leave.start_date, leave.end_date)}</div>
                       </TableCell>
-                      <TableCell className="text-xs max-w-xs truncate" title={leave.reason}>
-                        <p className="truncate">{leave.reason}</p>
-                        {leave.rejection_reason && (
-                          <p className="text-[11px] text-destructive italic mt-0.5">
-                            Alasan ditolak: {leave.rejection_reason}
-                          </p>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {leave.attachment_path ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 gap-1 text-xs text-primary"
-                            onClick={() => setPreviewAttachment(`/storage/${leave.attachment_path}`)}
-                          >
-                            <Eye className="h-3.5 w-3.5" />
-                            <span>Lihat</span>
-                          </Button>
-                        ) : (
-                          <span className="text-xs text-muted-foreground/60 italic">-</span>
-                        )}
+                      <TableCell>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDetailLeave(leave)}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 transition-colors whitespace-nowrap"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          <span>Lihat Detail</span>
+                        </button>
                       </TableCell>
                       <TableCell>
                         <div className="space-y-1">
@@ -460,44 +451,11 @@ export default function Izin({ leaves, kelasList = [], stats, filters }: IzinPro
           )}
         </Card>
 
-        {/* Dialog Pratinjau Surat Lampiran */}
-        <Dialog open={!!previewAttachment} onOpenChange={(open) => !open && setPreviewAttachment(null)}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-primary" />
-                <span>Lampiran Bukti Surat Izin</span>
-              </DialogTitle>
-            </DialogHeader>
-
-            <div className="p-4 flex items-center justify-center bg-muted/40 rounded-lg border border-border">
-              {previewAttachment && (
-                <img
-                  src={previewAttachment}
-                  alt="Surat Bukti Izin"
-                  className="max-h-[500px] w-auto object-contain rounded shadow-sm"
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = 'none';
-                  }}
-                />
-              )}
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setPreviewAttachment(null)}>
-                Tutup
-              </Button>
-              {previewAttachment && (
-                <Button asChild>
-                  <a href={previewAttachment} target="_blank" rel="noreferrer" className="gap-1.5">
-                    <ExternalLink className="h-4 w-4" />
-                    <span>Buka File Asli</span>
-                  </a>
-                </Button>
-              )}
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <LeaveDetailModal
+          isOpen={!!selectedDetailLeave}
+          onClose={() => setSelectedDetailLeave(null)}
+          leave={selectedDetailLeave}
+        />
       </div>
     </AppLayout>
   );

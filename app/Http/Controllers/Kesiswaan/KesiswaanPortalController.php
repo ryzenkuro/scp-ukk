@@ -9,6 +9,7 @@ use App\Models\Schedule;
 use App\Models\SchoolClass;
 use App\Models\Siswa;
 use App\Models\SystemConfiguration;
+use App\Services\AttendanceSyncService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -20,6 +21,8 @@ class KesiswaanPortalController extends Controller
      */
     public function dashboard(): Response
     {
+        AttendanceSyncService::syncAllApprovedLeaves();
+
         $user = auth()->user();
         $config = SystemConfiguration::first();
         $activeCycle = $config?->active_cycle ?? 1;
@@ -42,7 +45,7 @@ class KesiswaanPortalController extends Controller
         // Jadwal mengajar jika petugas kesiswaan juga mengajar KBM
         $jadwals = Schedule::with(['schoolClass', 'room'])
             ->where('teacher_id', $user->id)
-            ->where('cycle', $activeCycle)
+            ->where('cycle_number', $activeCycle)
             ->orderBy('day_of_week')
             ->orderBy('start_time')
             ->get();
@@ -81,10 +84,15 @@ class KesiswaanPortalController extends Controller
      */
     public function presensi(Request $request): Response
     {
+        AttendanceSyncService::syncAllApprovedLeaves();
+
         $kelasList = SchoolClass::orderBy('name')->pluck('name')->toArray();
         $selectedClass = $request->input('kelas', $kelasList[0] ?? '');
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
+        if ($startDate && $endDate && $endDate < $startDate) {
+            $endDate = $startDate;
+        }
         $search = $request->input('search');
 
         $studentsQuery = Siswa::where('status', 'aktif')
@@ -97,7 +105,7 @@ class KesiswaanPortalController extends Controller
         if ($search) {
             $studentsQuery->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('nis', 'like', "%{$search}%");
+                    ->orWhere('nis', 'like', "%{$search}%");
             });
         }
 
@@ -185,6 +193,9 @@ class KesiswaanPortalController extends Controller
         $kelas = $request->input('kelas', 'all');
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
+        if ($startDate && $endDate && $endDate < $startDate) {
+            $endDate = $startDate;
+        }
         $search = $request->input('search');
 
         $query = LeaveRequest::with(['student', 'verifier'])
@@ -198,7 +209,7 @@ class KesiswaanPortalController extends Controller
             $query->where('type', $type);
         }
 
-        if ($kelas !== 'all' && !empty($kelas)) {
+        if ($kelas !== 'all' && ! empty($kelas)) {
             $query->whereHas('student', function ($sq) use ($kelas) {
                 $sq->where('kelas', $kelas);
             });
@@ -215,8 +226,8 @@ class KesiswaanPortalController extends Controller
         if ($search) {
             $query->whereHas('student', function ($sq) use ($search) {
                 $sq->where('name', 'like', "%{$search}%")
-                   ->orWhere('nis', 'like', "%{$search}%")
-                   ->orWhere('kelas', 'like', "%{$search}%");
+                    ->orWhere('nis', 'like', "%{$search}%")
+                    ->orWhere('kelas', 'like', "%{$search}%");
             });
         }
 

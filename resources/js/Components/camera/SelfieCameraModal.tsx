@@ -270,18 +270,14 @@ export function SelfieCameraModal({
       }
     }
 
-    // Jika wajah asli sudah stabil terdeteksi -> Eksekusi pengambilan foto otomatis!
-    if (detectionCountRef.current >= REQUIRED_STABLE_FRAMES && !isCapturingRef.current) {
-      isCapturingRef.current = true;
-      executeAutoCapture();
-      return;
-    }
-
     animFrameIdRef.current = requestAnimationFrame(analyzeFrame);
   }, [studentName, studentClass]);
 
-  // 4. Eksekusi pengambilan foto otomatis dengan watermark resmi SMK N 1 Bantul
-  const executeAutoCapture = () => {
+  // 4. Eksekusi pengambilan foto manual dengan watermark resmi SMK N 1 Bantul
+  const handleManualCapture = () => {
+    if (isCapturingRef.current) return;
+    isCapturingRef.current = true;
+
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
@@ -378,7 +374,7 @@ export function SelfieCameraModal({
             Kamera Selfie Real-Time
           </DialogTitle>
           <DialogDescription className="text-xs">
-            Arahkan wajah ke dalam panduan. Sistem akan otomatis memindai dan mengambil foto saat wajah terdeteksi.
+            Arahkan kamera ke wajah Anda, lalu klik tombol <strong>Ambil Foto Sekarang</strong> di bawah.
           </DialogDescription>
         </DialogHeader>
 
@@ -418,33 +414,26 @@ export function SelfieCameraModal({
               {isFlashActive && (
                 <div className="absolute inset-0 z-20 bg-white transition-opacity duration-200 pointer-events-none" />
               )}
-
-              {/* Face Guide Oval - Bentuk dan Ukuran Asli Persis Seperti Semula (w-48 h-60 rounded-[50%]) */}
-              <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-4">
-                <div
-                  className={`w-48 h-60 border-2 rounded-[50%] flex items-center justify-center transition-colors duration-200 ${
-                    isFaceDetected
-                      ? 'border-solid border-emerald-500 shadow-[0_0_25px_rgba(16,185,129,0.5)]'
-                      : 'border-dashed border-primary/70'
-                  }`}
-                >
-                  <span
-                    className={`text-[10px] font-medium px-2 py-0.5 rounded-full transition-colors ${
-                      isFaceDetected
-                        ? 'bg-emerald-600/90 text-white'
-                        : 'bg-black/60 text-primary-foreground'
-                    }`}
-                  >
-                    {isFaceDetected ? 'Wajah Terdeteksi! Menahan...' : 'Posisikan wajah di sini'}
-                  </span>
-                </div>
-              </div>
             </>
           )}
 
           {/* Hidden Canvas for Watermarking */}
           <canvas ref={canvasRef} className="hidden" />
         </div>
+
+        {/* Shutter Action Bar (Pengambilan Manual dengan Klik) */}
+        {!cameraError && (
+          <div className="p-4 bg-card border-t border-border flex items-center justify-center">
+            <Button
+              type="button"
+              onClick={handleManualCapture}
+              className="w-full sm:w-auto px-8 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs gap-2 rounded-full shadow-md cursor-pointer transition-transform active:scale-95"
+            >
+              <Camera className="h-4 w-4" />
+              <span>Ambil Foto Sekarang</span>
+            </Button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

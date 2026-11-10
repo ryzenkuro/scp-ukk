@@ -185,10 +185,17 @@ export function SidebarNav() {
           active: url === '/guru/dashboard',
         },
         {
+          id: 'jadwal-mengajar-bk',
+          title: 'Jadwal Mengajar',
+          href: '/guru/jadwal',
+          icon: Calendar,
+          active: url === '/guru/jadwal',
+        },
+        {
           id: 'jurnal-kbm-bk',
           title: 'Jurnal & Presensi KBM',
           href: '/guru/journal',
-          icon: Clock,
+          icon: BookOpen,
           active: url.startsWith('/guru/journal'),
         },
       ]
@@ -213,6 +220,13 @@ export function SidebarNav() {
           href: '/wali-kelas/siswa',
           icon: Users,
           active: url.startsWith('/wali-kelas/siswa'),
+        },
+        {
+          id: 'jadwal-wali-kelas',
+          title: 'Jadwal Kelas Binaan',
+          href: '/wali-kelas/jadwal',
+          icon: Calendar,
+          active: url.startsWith('/wali-kelas/jadwal'),
         },
         {
           id: 'izin-wali-kelas',
@@ -244,7 +258,7 @@ export function SidebarNav() {
           id: 'jurnal-kbm-wali',
           title: 'Jurnal & Presensi KBM',
           href: '/guru/journal',
-          icon: Clock,
+          icon: BookOpen,
           active: url.startsWith('/guru/journal'),
         },
       ]
@@ -262,6 +276,13 @@ export function SidebarNav() {
           href: '/guru/dashboard',
           icon: LayoutDashboard,
           active: url === '/guru/dashboard',
+        },
+        {
+          id: 'jadwal-mengajar-guru',
+          title: 'Jadwal Mengajar',
+          href: '/guru/jadwal',
+          icon: Calendar,
+          active: url === '/guru/jadwal',
         },
         {
           id: 'jurnal-kbm',
@@ -304,7 +325,37 @@ export function SidebarNav() {
     }
   ];
 
-  const isWali = roleName === 'wali_kelas' || (user?.homeroom_assignments && user.homeroom_assignments.length > 0);
+  // Navigasi Orang Tua Murid
+  const orangTuaNavGroups: NavGroupData[] = [
+    {
+      heading: 'Portal Orang Tua Murid',
+      items: [
+        {
+          id: 'dashboard-ortu',
+          title: 'Dashboard Orang Tua',
+          href: '/siswa/dashboard',
+          icon: LayoutDashboard,
+          active: url === '/siswa/dashboard',
+        },
+        {
+          id: 'jadwal-anak',
+          title: 'Jadwal Pelajaran Anak',
+          href: '/siswa/jadwal',
+          icon: Calendar,
+          active: url.startsWith('/siswa/jadwal'),
+        },
+        {
+          id: 'izin-anak',
+          title: 'Pengajuan Izin Anak',
+          href: '/siswa/izin',
+          icon: ClipboardList,
+          active: url.startsWith('/siswa/izin'),
+        },
+      ]
+    }
+  ];
+
+  const isWali = roleName === 'wali_kelas' || user?.role_id === 5 || (user?.homeroom_assignments && user.homeroom_assignments.length > 0) || (user?.wali_classes && user.wali_classes.length > 0);
   let currentGroups = wakaNavGroups;
   if (roleName === 'guru_bk' || roleName === 'bk' || roleName === 'kesiswaan') {
     currentGroups = guruBkNavGroups;
@@ -312,7 +363,9 @@ export function SidebarNav() {
     currentGroups = waliKelasNavGroups;
   } else if (roleName === 'guru') {
     currentGroups = guruNavGroups;
-  } else if (roleName === 'siswa' || roleName === 'orang_tua') {
+  } else if (roleName === 'orang_tua' || user?.role_id === 6) {
+    currentGroups = orangTuaNavGroups;
+  } else if (roleName === 'siswa' || user?.role_id === 3) {
     currentGroups = siswaNavGroups;
   }
 

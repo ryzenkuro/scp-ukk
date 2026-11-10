@@ -4,8 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
-use App\Models\LeaveRequest;
-use Carbon\Carbon;
+use App\Services\AttendanceSyncService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -16,44 +15,7 @@ class AttendanceApiController extends Controller
      */
     public static function syncApprovedLeaves(?int $studentId = null): void
     {
-        $query = LeaveRequest::where('status', 'approved');
-        if ($studentId) {
-            $query->where('student_id', $studentId);
-        }
-        $approvedLeaves = $query->get();
-
-        foreach ($approvedLeaves as $leave) {
-            $start = Carbon::parse($leave->start_date);
-            $end = Carbon::parse($leave->end_date ?? $leave->start_date);
-            if ($end->lt($start)) {
-                $end = $start->copy();
-            }
-
-            $days = min($start->diffInDays($end) + 1, 30);
-            for ($i = 0; $i < $days; $i++) {
-                $curDate = $start->copy()->addDays($i)->toDateString();
-                $status = $leave->type === 'sakit' ? 'sakit' : 'izin';
-
-                $existing = Attendance::where('student_id', $leave->student_id)
-                    ->where('date', $curDate)
-                    ->first();
-
-                if (! $existing) {
-                    Attendance::create([
-                        'journal_id' => null,
-                        'student_id' => $leave->student_id,
-                        'status' => $status,
-                        'notes' => $leave->reason,
-                        'date' => $curDate,
-                    ]);
-                } elseif ($existing->status !== 'hadir') {
-                    $existing->update([
-                        'status' => $status,
-                        'notes' => $existing->notes ?? $leave->reason,
-                    ]);
-                }
-            }
-        }
+        AttendanceSyncService::syncAllApprovedLeaves($studentId);
     }
 
     public function index(Request $request)
@@ -142,4 +104,3 @@ class AttendanceApiController extends Controller
         ], 201);
     }
 }
-

@@ -34,7 +34,9 @@ import {
     Clock,
     ArrowRight,
     AlertTriangle,
-    AlertCircle
+    AlertCircle,
+    User,
+    MapPin
 } from 'lucide-react';
 
 interface ScheduleItem {
@@ -311,13 +313,73 @@ export default function Dashboard({
                     </Card>
                 </div>
 
-                {/* Bagian Operasional: Jadwal Hari Ini & Ringkasan Presensi */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Tabel Jadwal Hari Ini (2 Kolom) */}
-                    <Card className="lg:col-span-2">
+                {/* Bagian Operasional: Kehadiran Siswa & Jadwal Pembelajaran Hari Ini */}
+                <div className="space-y-6">
+                    {/* Ringkasan Presensi Hari Ini (Format Grid 4 Kolom) */}
+                    <Card>
+                        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-3 gap-3">
+                            <div>
+                                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                                    <UserCheck className="h-5 w-5 text-primary" />
+                                    Kehadiran Siswa Hari Ini ({currentDay})
+                                </CardTitle>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    Rekapitulasi absensi presensi siswa harian seluruh rombel KBM
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Link href="/waka/jam-pelajaran">
+                                    <Button variant="outline" size="sm" className="text-xs gap-1.5 h-8">
+                                        <Clock className="h-3.5 w-3.5" /> Konfigurasi Jam Belajar
+                                    </Button>
+                                </Link>
+                                <Link href="/waka/laporan/presensi">
+                                    <Button variant="outline" size="sm" className="text-xs gap-1.5 h-8 text-primary border-primary/30 hover:bg-primary/5">
+                                        Laporan Lengkap <ArrowRight className="h-3.5 w-3.5" />
+                                    </Button>
+                                </Link>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="pt-0">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                <div className="flex items-center justify-between p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/20">
+                                    <div>
+                                        <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300 block">Hadir</span>
+                                        <span className="text-2xl font-black text-emerald-900 dark:text-emerald-100">{attendanceSummary.hadir}</span>
+                                    </div>
+                                    <span className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">Siswa</span>
+                                </div>
+                                <div className="flex items-center justify-between p-3.5 rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-950/20">
+                                    <div>
+                                        <span className="text-xs font-semibold text-amber-800 dark:text-amber-300 block">Sakit</span>
+                                        <span className="text-2xl font-black text-amber-900 dark:text-amber-100">{attendanceSummary.sakit}</span>
+                                    </div>
+                                    <span className="text-xs text-amber-700 dark:text-amber-400 font-medium">Siswa</span>
+                                </div>
+                                <div className="flex items-center justify-between p-3.5 rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20">
+                                    <div>
+                                        <span className="text-xs font-semibold text-blue-800 dark:text-blue-300 block">Izin</span>
+                                        <span className="text-2xl font-black text-blue-900 dark:text-blue-100">{attendanceSummary.izin}</span>
+                                    </div>
+                                    <span className="text-xs text-blue-700 dark:text-blue-400 font-medium">Siswa</span>
+                                </div>
+                                <div className="flex items-center justify-between p-3.5 rounded-xl border border-rose-200 dark:border-rose-900 bg-rose-50/50 dark:bg-rose-950/20">
+                                    <div>
+                                        <span className="text-xs font-semibold text-rose-800 dark:text-rose-300 block">Alpa</span>
+                                        <span className="text-2xl font-black text-rose-900 dark:text-rose-100">{attendanceSummary.alpa}</span>
+                                    </div>
+                                    <span className="text-xs text-rose-700 dark:text-rose-400 font-medium">Siswa</span>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Tabel Jadwal Hari Ini (Spasious & Proporsional Tanpa Pemotongan Teks) */}
+                    <Card>
                         <CardHeader className="flex flex-row items-center justify-between pb-3">
                             <div>
-                                <CardTitle className="text-base font-semibold">
+                                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                                    <Calendar className="h-5 w-5 text-primary" />
                                     Jadwal Pembelajaran Hari Ini ({currentDay})
                                 </CardTitle>
                                 <p className="text-xs text-muted-foreground mt-0.5">
@@ -329,84 +391,67 @@ export default function Dashboard({
                             </Link>
                         </CardHeader>
                         <CardContent className="p-0">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Mata Pelajaran</TableHead>
-                                        <TableHead>Kelas</TableHead>
-                                        <TableHead>Guru Pengampu</TableHead>
-                                        <TableHead>Ruang</TableHead>
-                                        <TableHead className="text-right">Jam</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {todaySchedules.length === 0 ? (
+                            <div className="overflow-x-auto">
+                                <Table>
+                                    <TableHeader>
                                         <TableRow>
-                                            <TableCell colSpan={5} className="text-center py-6 text-muted-foreground text-xs">
-                                                Tidak ada jadwal pembelajaran aktif untuk hari ini.
-                                            </TableCell>
+                                            <TableHead className="w-12 text-center font-bold">No</TableHead>
+                                            <TableHead className="min-w-[220px]">Mata Pelajaran</TableHead>
+                                            <TableHead className="w-[120px] text-center">Kelas</TableHead>
+                                            <TableHead className="min-w-[180px]">Guru Pengampu</TableHead>
+                                            <TableHead className="w-[140px]">Ruang</TableHead>
+                                            <TableHead className="w-[160px] text-right">Waktu (Jam)</TableHead>
                                         </TableRow>
-                                    ) : (
-                                        todaySchedules.map((item) => (
-                                            <TableRow key={item.id}>
-                                                <TableCell className="font-medium text-sm">
-                                                    {item.subject}
-                                                </TableCell>
-                                                <TableCell className="text-xs">
-                                                    <Badge variant="outline">{item.class_name}</Badge>
-                                                </TableCell>
-                                                <TableCell className="text-xs text-muted-foreground">
-                                                    {item.teacher?.fullname || '-'}
-                                                </TableCell>
-                                                <TableCell className="text-xs text-muted-foreground">
-                                                    {item.room_name || item.room?.name || '-'}
-                                                </TableCell>
-                                                <TableCell className="text-right font-mono text-xs">
-                                                    {formatTime(item.start_time)} - {formatTime(item.end_time)}
+                                    </TableHeader>
+                                    <TableBody>
+                                        {todaySchedules.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground text-xs">
+                                                    Tidak ada jadwal pembelajaran aktif untuk hari ini.
                                                 </TableCell>
                                             </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </CardContent>
-                    </Card>
-
-                    {/* Ringkasan Presensi Hari Ini (1 Kolom) */}
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between pb-3">
-                            <div>
-                                <CardTitle className="text-base font-semibold">Kehadiran Hari Ini</CardTitle>
-                                <p className="text-xs text-muted-foreground mt-0.5">Rekapitulasi absensi siswa</p>
-                            </div>
-                            <Link href="/waka/laporan/presensi" className="text-xs font-medium text-foreground hover:underline flex items-center gap-1">
-                                Laporan <ArrowRight className="h-3.5 w-3.5" />
-                            </Link>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30">
-                                <span className="text-xs font-medium">Hadir</span>
-                                <span className="font-bold text-sm text-foreground">{attendanceSummary.hadir} siswa</span>
-                            </div>
-                            <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30">
-                                <span className="text-xs font-medium">Sakit</span>
-                                <span className="font-bold text-sm text-foreground">{attendanceSummary.sakit} siswa</span>
-                            </div>
-                            <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30">
-                                <span className="text-xs font-medium">Izin</span>
-                                <span className="font-bold text-sm text-foreground">{attendanceSummary.izin} siswa</span>
-                            </div>
-                            <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30">
-                                <span className="text-xs font-medium">Alpa (Tanpa Keterangan)</span>
-                                <span className="font-bold text-sm text-foreground">{attendanceSummary.alpa} siswa</span>
-                            </div>
-
-                            <div className="pt-2">
-                                <Link href="/waka/jam-pelajaran">
-                                    <Button variant="outline" size="sm" className="w-full text-xs gap-2">
-                                        <Clock className="h-3.5 w-3.5" /> Konfigurasi Jam Belajar
-                                    </Button>
-                                </Link>
+                                        ) : (
+                                            todaySchedules.map((item, idx) => (
+                                                <TableRow key={item.id} className="hover:bg-muted/40 transition-colors">
+                                                    <TableCell className="text-center font-mono text-xs text-muted-foreground">
+                                                        {idx + 1}
+                                                    </TableCell>
+                                                    <TableCell className="font-semibold text-sm text-foreground">
+                                                        {item.subject}
+                                                    </TableCell>
+                                                    <TableCell className="text-center">
+                                                        <Badge variant="outline" className="font-mono text-xs font-semibold whitespace-nowrap">
+                                                            {item.class_name}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell className="text-xs">
+                                                        <div className="flex items-center gap-1.5 text-foreground whitespace-nowrap">
+                                                            <User className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                                                            <span>{item.teacher?.fullname || '-'}</span>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {item.room_name || item.room?.name ? (
+                                                            <Badge variant="secondary" className="gap-1 text-xs font-medium whitespace-nowrap">
+                                                                <MapPin className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                                                <span>{item.room_name || item.room?.name}</span>
+                                                            </Badge>
+                                                        ) : (
+                                                            <Badge variant="outline" className="text-xs text-muted-foreground whitespace-nowrap">
+                                                                Ruang Kelas
+                                                            </Badge>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        <span className="font-mono text-xs font-semibold whitespace-nowrap text-foreground inline-block px-2.5 py-1 rounded bg-muted/60">
+                                                            {formatTime(item.start_time)} - {formatTime(item.end_time)}
+                                                        </span>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
                             </div>
                         </CardContent>
                     </Card>

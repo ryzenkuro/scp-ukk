@@ -6,12 +6,13 @@ import { Label } from '@/Components/ui/label';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/Components/ui/card';
 import { ShieldCheck } from 'lucide-react';
 
-export default function ActivateAccount() {
+export default function ActivateAccount({ initialEmail = '' }: { initialEmail?: string }) {
     const { auth } = usePage<any>().props;
     const user = auth?.user;
 
     const { data, setData, post, processing, errors } = useForm({
         new_username: user?.username || '',
+        email: initialEmail || user?.email || '',
         new_password: '',
         new_password_confirmation: '',
     });
@@ -57,6 +58,24 @@ export default function ActivateAccount() {
                                 </p>
                                 {errors.new_username && (
                                     <p className="text-xs text-destructive">{errors.new_username}</p>
+                                )}
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <Label htmlFor="email">Email Aktif</Label>
+                                <Input
+                                    id="email"
+                                    type="email"
+                                    value={data.email}
+                                    placeholder="contoh: namaanda@gmail.com"
+                                    onChange={(e) => setData('email', e.target.value)}
+                                    required
+                                />
+                                <p className="text-[11px] text-muted-foreground">
+                                    Digunakan untuk menerima kode OTP jika Anda lupa kata sandi di kemudian hari.
+                                </p>
+                                {errors.email && (
+                                    <p className="text-xs text-destructive">{errors.email}</p>
                                 )}
                             </div>
 

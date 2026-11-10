@@ -8,6 +8,8 @@ use App\Models\Schedule;
 use App\Models\Siswa;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class Phase5JournalTest extends TestCase
@@ -67,11 +69,15 @@ class Phase5JournalTest extends TestCase
             ];
         }
 
+        Storage::fake('public');
+        $photo = UploadedFile::fake()->image('kbm_clean_code.jpg', 800, 600);
+
         $response = $this->actingAs($guru)->post('/guru/journal', [
             'schedule_id' => $schedule->id,
             'date' => '2026-11-09',
             'topic' => 'Pengenalan Arsitektur Clean Code & MVC',
             'notes' => 'Kelas berlangsung kondusif dan siswa aktif bertanya',
+            'documentation' => $photo,
             'attendances' => $attendanceData,
         ]);
 
@@ -88,6 +94,8 @@ class Phase5JournalTest extends TestCase
         $journal = Journal::where('topic', 'Pengenalan Arsitektur Clean Code & MVC')->first();
         $this->assertNotNull($journal);
         $this->assertEquals('2026-11-09', $journal->date->format('Y-m-d'));
+        $this->assertNotNull($journal->documentation_path);
+        Storage::disk('public')->assertExists($journal->documentation_path);
 
         // 2. Verifikasi Presensi Siswa dibuat
         $this->assertDatabaseHas('attendances', [
@@ -103,6 +111,36 @@ class Phase5JournalTest extends TestCase
                 'status' => 'sakit',
             ]);
         }
+    }
+
+    public function test_guru_cannot_create_journal_without_documentation_photo(): void
+    {
+        $guru = User::where('username', 'guru1')->first();
+        $schedule = Schedule::where('teacher_id', $guru->id)->first();
+        $students = Siswa::where('kelas', $schedule->class_name)->get();
+
+        $attendanceData = [];
+        foreach ($students as $s) {
+            $attendanceData[] = [
+                'student_id' => $s->id,
+                'status' => 'hadir',
+                'notes' => null,
+            ];
+        }
+
+        $response = $this->actingAs($guru)->post('/guru/journal', [
+            'schedule_id' => $schedule->id,
+            'date' => '2026-11-09',
+            'topic' => 'Jurnal Tanpa Foto',
+            'notes' => 'Harus ditolak',
+            'attendances' => $attendanceData,
+        ]);
+
+        $response->assertSessionHasErrors(['documentation']);
+        $this->assertEquals(
+            'Dokumentasi foto kegiatan KBM wajib dilampirkan (bisa foto langsung atau unggah file).',
+            session('errors')->first('documentation')
+        );
     }
 
     public function test_guru_can_edit_journal_and_update_attendance_status(): void

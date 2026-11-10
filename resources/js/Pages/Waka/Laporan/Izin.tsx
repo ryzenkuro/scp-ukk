@@ -28,8 +28,11 @@ import {
     XCircle,
     Printer,
     Filter,
-    ShieldCheck
+    ShieldCheck,
+    Eye
 } from 'lucide-react';
+import { formatDateRangeIndo } from '@/lib/utils';
+import { LeaveDetailModal, LeaveDetailData } from '@/Components/modals/LeaveDetailModal';
 
 interface StudentInfo {
     id: number;
@@ -77,6 +80,7 @@ export default function LaporanIzin({ leaves, filters }: IzinReportProps) {
     const [selectedType, setSelectedType] = useState(filters.type || 'all');
 
     const [verifyItem, setVerifyItem] = useState<LeaveItem | null>(null);
+    const [selectedDetailLeave, setSelectedDetailLeave] = useState<LeaveDetailData | null>(null);
 
     const verifyForm = useForm({
         status: 'approved',
@@ -228,19 +232,18 @@ export default function LaporanIzin({ leaves, filters }: IzinReportProps) {
                                                     {leave.type}
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell className="text-xs font-mono">
-                                                {leave.start_date} s.d. {leave.end_date}
+                                            <TableCell className="text-xs whitespace-nowrap font-medium">
+                                                {formatDateRangeIndo(leave.start_date, leave.end_date)}
                                             </TableCell>
-                                            <TableCell className="text-xs max-w-xs">
-                                                <div className="font-medium text-foreground">{leave.reason}</div>
-                                                {leave.rejection_reason && (
-                                                    <div className="text-destructive mt-0.5">Alasan tolak: {leave.rejection_reason}</div>
-                                                )}
-                                                {leave.verifier && (
-                                                    <div className="text-muted-foreground mt-0.5 text-[11px]">
-                                                        Diverifikasi oleh: {leave.verifier.fullname}
-                                                    </div>
-                                                )}
+                                            <TableCell>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSelectedDetailLeave(leave)}
+                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 transition-colors whitespace-nowrap"
+                                                >
+                                                    <Eye className="h-3.5 w-3.5" />
+                                                    <span>Lihat Detail</span>
+                                                </button>
                                             </TableCell>
                                             <TableCell className="text-center">
                                                 <Badge
@@ -316,7 +319,7 @@ export default function LaporanIzin({ leaves, filters }: IzinReportProps) {
                         <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-1 text-xs">
                             <div>Siswa: <strong className="text-foreground">{verifyItem?.student?.name}</strong> ({verifyItem?.student?.kelas})</div>
                             <div>Jenis: <strong className="capitalize text-foreground">{verifyItem?.type}</strong></div>
-                            <div>Tanggal: <span className="font-mono text-foreground">{verifyItem?.start_date} s.d. {verifyItem?.end_date}</span></div>
+                            <div>Tanggal: <span className="font-semibold text-foreground">{formatDateRangeIndo(verifyItem?.start_date, verifyItem?.end_date)}</span></div>
                             <div>Alasan: <span className="italic text-foreground">"{verifyItem?.reason}"</span></div>
                         </div>
 
@@ -356,6 +359,12 @@ export default function LaporanIzin({ leaves, filters }: IzinReportProps) {
                     </form>
                 </DialogContent>
             </Dialog>
+
+            <LeaveDetailModal
+                isOpen={!!selectedDetailLeave}
+                onClose={() => setSelectedDetailLeave(null)}
+                leave={selectedDetailLeave}
+            />
         </AppLayout>
     );
 }

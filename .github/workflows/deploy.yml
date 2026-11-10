@@ -85,3 +85,6 @@ jobs:
 
             # 5. Tunggu proses deployment sampai status Ready (1/1 Running)
             kubectl rollout status deployment/laravel-app -n ukk-production --timeout=180s
+
+            # 6. Jalankan migrasi database produksi secara otomatis
+            kubectl exec -n ukk-production deployment/laravel-app -- php artisan migrate --force

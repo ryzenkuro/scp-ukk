@@ -4,14 +4,15 @@ namespace App\Http\Controllers\Waka;
 
 use App\Http\Controllers\Controller;
 use App\Models\HomeroomAssignment;
+use App\Models\Journal;
+use App\Models\Schedule;
 use App\Models\SchoolClass;
 use App\Models\User;
+use App\Services\MasterDataService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -28,24 +29,37 @@ class GuruController extends Controller
     public function index(Request $request): Response
     {
         $search = $request->input('search');
+        $perPageInput = $request->input('per_page', '20');
 
         $query = User::whereIn('role_id', [2, 5]) // Guru & Wali Kelas
+            ->with(['schoolClass', 'homeroomAssignments'])
             ->orderBy('fullname');
 
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('fullname', 'like', "%{$search}%")
-                  ->orWhere('username', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('username', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('nip', 'like', "%{$search}%");
             });
         }
 
-        $gurus = $query->paginate(20)->withQueryString();
+        $totalTeachers = User::whereIn('role_id', [2, 5])->count();
+        $perPage = $perPageInput === 'all' ? max(100, $totalTeachers) : (int) $perPageInput;
+        if ($perPage <= 0) {
+            $perPage = 20;
+        }
+
+        $gurus = $query->paginate($perPage)->withQueryString();
+        $classes = SchoolClass::orderBy('name')->get(['id', 'name', 'grade', 'jurusan']);
 
         return Inertia::render('Waka/Guru/Index', [
             'gurus' => $gurus,
+            'totalTeachers' => $totalTeachers,
+            'classes' => $classes,
             'filters' => [
                 'search' => $search,
+                'per_page' => $perPageInput,
             ],
         ]);
     }
@@ -84,17 +98,52 @@ class GuruController extends Controller
     {
         $validated = $request->validate([
             'fullname' => ['required', 'string', 'max:100'],
-            'email' => ['nullable', 'email', 'max:100', 'unique:users,email,' . $guru->id],
+            'email' => ['nullable', 'email', 'max:100', 'unique:users,email,'.$guru->id],
             'phone' => ['nullable', 'string', 'max:25'],
+            'role_id' => ['nullable', 'in:2,5'],
+            'class_id' => ['nullable'],
             'is_active' => ['boolean'],
         ]);
 
-        $guru->update([
-            'fullname' => $validated['fullname'],
-            'email' => $validated['email'] ?? null,
-            'phone' => $validated['phone'] ?? null,
-            'is_active' => $request->boolean('is_active', true),
-        ]);
+        $roleId = isset($validated['role_id']) ? (int) $validated['role_id'] : $guru->role_id;
+        $classId = ! empty($validated['class_id']) && $validated['class_id'] !== 'none' ? (int) $validated['class_id'] : null;
+
+        DB::transaction(function () use ($guru, $validated, $roleId, $classId, $request) {
+            $guru->update([
+                'fullname' => $validated['fullname'],
+                'email' => $validated['email'] ?? null,
+                'phone' => $validated['phone'] ?? null,
+                'role_id' => $roleId,
+                'class_id' => $classId,
+                'is_active' => $request->boolean('is_active', true),
+            ]);
+
+            if ($classId && $roleId === 5) {
+                $class = SchoolClass::find($classId);
+                if ($class) {
+                    HomeroomAssignment::where('school_class_id', $class->id)->delete();
+                    DB::table('user_school_classes')->where('school_class_id', $class->id)->delete();
+
+                    HomeroomAssignment::create([
+                        'school_class_id' => $class->id,
+                        'class_name' => $class->name,
+                        'user_id' => $guru->id,
+                        'academic_year' => '2026/2027',
+                    ]);
+
+                    DB::table('user_school_classes')->insertOrIgnore([
+                        'user_id' => $guru->id,
+                        'school_class_id' => $class->id,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            } elseif ($roleId === 2) {
+                HomeroomAssignment::where('user_id', $guru->id)->delete();
+                DB::table('user_school_classes')->where('user_id', $guru->id)->delete();
+                $guru->update(['class_id' => null]);
+            }
+        });
 
         return back()->with('success', "Data tenaga pendidik {$guru->fullname} berhasil diperbarui.");
     }
@@ -117,8 +166,34 @@ class GuruController extends Controller
      */
     public function destroy(User $guru): RedirectResponse
     {
+        $dependencies = [];
+
+        $scheduleCount = Schedule::where('teacher_id', $guru->id)->count();
+        if ($scheduleCount > 0) {
+            $dependencies[] = "{$scheduleCount} jadwal mengajar";
+        }
+
+        $journalCount = Journal::where('teacher_id', $guru->id)->count();
+        if ($journalCount > 0) {
+            $dependencies[] = "{$journalCount} jurnal KBM";
+        }
+
+        if ($guru->isWaliKelas()) {
+            $dependencies[] = 'penugasan sebagai wali kelas';
+        }
+
+        if (! empty($dependencies)) {
+            $details = implode(', ', $dependencies);
+
+            return back()->with('error', "Data guru {$guru->fullname} tidak dapat dihapus karena data berelasi masih aktif ({$details}). Silakan nonaktifkan akun guru atau alihkan jadwal/penugasan terlebih dahulu demi integritas data.");
+        }
+
         $name = $guru->fullname;
-        $guru->delete();
+        DB::transaction(function () use ($guru) {
+            DB::table('homeroom_assignments')->where('user_id', $guru->id)->delete();
+            DB::table('user_school_classes')->where('user_id', $guru->id)->delete();
+            $guru->delete();
+        });
 
         return back()->with('success', "Data guru {$name} berhasil dihapus.");
     }
@@ -156,14 +231,27 @@ class GuruController extends Controller
     }
 
     /**
-     * Download template import guru Excel
+     * Download template import guru Excel (format resmi Data Pegawai sheet Guru)
      */
     public function template(): StreamedResponse
     {
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
-        $sheet->fromArray(['Nama Lengkap', 'Username', 'NIP', 'Nomor HP', 'Email', 'Password', 'Wali Kelas', 'Guru BK'], null, 'A1');
-        foreach (range('A', 'H') as $column) {
+        $sheet->setTitle('Guru');
+        $sheet->fromArray([
+            'NO',
+            'NIP',
+            'NAMA',
+            'JENIS KELAMIN',
+            'GOLONGAN',
+            'TMT GOLONGAN',
+            'JABATAN',
+            'PENDIDIKAN',
+            'MAPEL',
+            'KODE/ID GURU',
+        ], null, 'A1');
+
+        foreach (range('A', 'J') as $column) {
             $sheet->getColumnDimension($column)->setAutoSize(true);
         }
 
@@ -175,21 +263,35 @@ class GuruController extends Controller
     }
 
     /**
-     * Download contoh file import guru 5 data
+     * Download contoh file import guru (format resmi sheet Guru dengan contoh data)
      */
     public function contoh(): StreamedResponse
     {
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
-        $sheet->fromArray(['Nama Lengkap', 'Username', 'NIP', 'Nomor HP', 'Email', 'Password', 'Wali Kelas', 'Guru BK'], null, 'A1');
+        $sheet->setTitle('Guru');
         $sheet->fromArray([
-            ['Dra. Siti Aminah, M.Pd.', 'siti.aminah', '197505122000032001', '081234567001', 'siti.aminah@sekolah.sch.id', 'GuruPass123', 'X RPL 1', ''],
-            ['Bambang Wijaya, S.Kom.', 'bambang.w', '198203152008011002', '081234567002', 'bambang.wijaya@sekolah.sch.id', 'GuruPass123', 'XI TKJ 1', ''],
-            ['Candra Rahadian, S.Pd.', 'candra.r', '198506102010011003', '081234567003', 'candra.rahadian@sekolah.sch.id', 'GuruPass123', '', 'X AK 1, X AK 2, X AK 3'],
-            ['Ahmad Fauzi, M.T.', 'ahmad.fauzi', '198011252006041004', '081234567004', 'ahmad.fauzi@sekolah.sch.id', 'GuruPass123', 'XII DKV 1', ''],
-            ['Ryawidyaningtyas, S.Pd.', 'rya.widya', '199201102016032005', '081234567005', 'rya.widyaningtyas@sekolah.sch.id', 'GuruPass123', '', 'X RPL 1, X RPL 2'],
+            'NO',
+            'NIP',
+            'NAMA',
+            'JENIS KELAMIN',
+            'GOLONGAN',
+            'TMT GOLONGAN',
+            'JABATAN',
+            'PENDIDIKAN',
+            'MAPEL',
+            'KODE/ID GURU',
+        ], null, 'A1');
+
+        $sheet->fromArray([
+            [1, '196904041989031010', 'RAHARJO S.IP., M.Pd.', 'L', 'IV/c', '01-04-2022', 'Kepala Sekolah', 'S2 Manajemen Pendidikan', 'Kepala Sekolah', 1],
+            [2, '197109021994012001', 'SUNARSIH, S.Pd.', 'P', 'IV/b', '01-10-2021', 'Guru Madya', 'S1 Pendidikan Kimia', 'IPAS', 2],
+            [3, '196906051994122003', 'ARIS PURWANTINAH, S.Pd.', 'P', 'IV/b', '01-04-2023', 'Guru Madya', 'S1 Pendidikan Tata Niaga', 'PRODUKTIF BISNIS RITEL', 3],
+            [4, '197210221995122001', 'AISYAH WULANDARI, S.Pd', 'P', 'IV/b', '01-10-2023', 'Guru Madya', 'S1 Bimbingan Konseling', 'BIMBINGAN KONSELING', 4],
+            [5, '196706051997021002', 'SUJAR HARTONO, S.Pd.', 'L', 'IV/a', '01-04-2020', 'Guru Pembina', 'S1 Pendidikan Bahasa Inggris', 'BAHASA INGGRIS', 9],
         ], null, 'A2');
-        foreach (range('A', 'H') as $column) {
+
+        foreach (range('A', 'J') as $column) {
             $sheet->getColumnDimension($column)->setAutoSize(true);
         }
 
@@ -201,24 +303,72 @@ class GuruController extends Controller
     }
 
     /**
-     * Import data guru dari Excel atau PDF
+     * Download master data guru dalam format Markdown (.md)
+     */
+    public function downloadMaster(MasterDataService $masterDataService): StreamedResponse
+    {
+        $content = $masterDataService->getMasterMarkdownContent('guru');
+
+        return response()->streamDownload(
+            function () use ($content) {
+                echo $content;
+            },
+            'master_data_guru.md',
+            ['Content-Type' => 'text/markdown; charset=UTF-8']
+        );
+    }
+
+    /**
+     * Import data guru dari Excel, PDF, atau Markdown .md
      */
     public function import(Request $request): RedirectResponse
     {
         $request->validate([
-            'file' => ['required', 'file', 'mimes:xlsx,xls,pdf', 'max:20480'],
+            'file' => ['required', 'file', 'max:20480'],
         ]);
+
+        $allowedExtensions = ['xlsx', 'xls', 'pdf', 'md', 'txt'];
+        $uploadedFile = $request->file('file');
+        $extension = strtolower($uploadedFile->getClientOriginalExtension());
+        if (! in_array($extension, $allowedExtensions, true)) {
+            throw ValidationException::withMessages([
+                'file' => 'Format file tidak didukung. Harap gunakan file .xlsx, .xls, .pdf, atau .md.',
+            ]);
+        }
 
         @set_time_limit(180);
 
-        $uploadedFile = $request->file('file');
-        $extension = strtolower($uploadedFile->getClientOriginalExtension());
         $sheetRows = [];
 
-        if (in_array($extension, ['xlsx', 'xls'], true)) {
+        if ($extension === 'md') {
+            $content = (string) file_get_contents($uploadedFile->getRealPath());
+            $parsedTable = (new MasterDataService)->parseMarkdownTable($content);
+            $sheetRows[] = ['Nama Lengkap', 'Username', 'NIP', 'Phone', 'Email', 'Password', 'Wali Kelas', 'Guru BK'];
+            foreach ($parsedTable as $pRow) {
+                $fullname = $pRow['nama lengkap & gelar'] ?? ($pRow['nama lengkap'] ?? ($pRow['nama guru'] ?? ($pRow['nama'] ?? '')));
+                $username = trim((string) ($pRow['username default'] ?? ($pRow['username'] ?? '')), ' `');
+                $nip = trim((string) ($pRow['nip'] ?? ''), ' `');
+
+                if (trim($fullname) === '') {
+                    continue;
+                }
+
+                $sheetRows[] = [
+                    $fullname,
+                    $username,
+                    $nip,
+                    null, // phone
+                    null, // email
+                    'smkn1bantul2026',
+                    null, // wali_kelas
+                    null, // guru_bk
+                ];
+            }
+        } elseif (in_array($extension, ['xlsx', 'xls'], true)) {
             try {
                 $spreadsheet = IOFactory::load($uploadedFile->getRealPath());
-                $sheetRows = $spreadsheet->getActiveSheet()->toArray(null, true, true, false);
+                $sheet = $spreadsheet->getSheetByName('Guru') ?? $spreadsheet->getActiveSheet();
+                $sheetRows = $sheet->toArray(null, true, true, false);
             } catch (\Throwable $exception) {
                 throw ValidationException::withMessages([
                     'file' => 'File Excel tidak dapat dibaca. Gunakan file .xlsx atau .xls yang valid.',
@@ -235,11 +385,11 @@ class GuruController extends Controller
                     $decompressed = @gzuncompress($stream);
                     $targetStream = $decompressed !== false ? $decompressed : $stream;
                     if (preg_match_all('/\((.*?)\)\s*T[jJ]/s', $targetStream, $textMatches)) {
-                        $pdfText .= implode(' ', $textMatches[1]) . "\n";
+                        $pdfText .= implode(' ', $textMatches[1])."\n";
                     } elseif (preg_match_all('/\[(.*?)\]\s*TJ/s', $targetStream, $textMatches)) {
                         foreach ($textMatches[1] as $arrayStr) {
                             if (preg_match_all('/\((.*?)\)/s', $arrayStr, $itemMatches)) {
-                                $pdfText .= implode('', $itemMatches[1]) . ' ';
+                                $pdfText .= implode('', $itemMatches[1]).' ';
                             }
                         }
                         $pdfText .= "\n";
@@ -262,19 +412,22 @@ class GuruController extends Controller
             $lines = explode("\n", $pdfText);
             foreach ($lines as $line) {
                 $trimmedLine = trim($line);
-                if ($trimmedLine === '') continue;
+                if ($trimmedLine === '') {
+                    continue;
+                }
 
                 // Support pipe-delimited PDF table: Nama | Username | NIP | Phone | Email | Pass | Walas
                 if (str_contains($trimmedLine, '|')) {
                     $cols = array_map('trim', explode('|', $trimmedLine));
                     $sheetRows[] = $cols;
+
                     continue;
                 }
 
                 // Support numbered list e.g. "1. RAHARJO, S.IP., M.Pd" or FET timetable
                 if (preg_match('/^\s*\d{1,3}[\.\,\)\s]+([A-Za-z\s\.,]+)/', $trimmedLine, $m)) {
                     $nameCand = trim($m[1]);
-                    if (strlen($nameCand) >= 3 && !preg_match('/^(Daftar|Halaman|Senin|Selasa|Rabu|Kamis|Jumat|Sabtu|Minggu)\b/i', $nameCand)) {
+                    if (strlen($nameCand) >= 3 && ! preg_match('/^(Daftar|Halaman|Senin|Selasa|Rabu|Kamis|Jumat|Sabtu|Minggu)\b/i', $nameCand)) {
                         $sheetRows[] = [$nameCand];
                     }
                 }
@@ -314,6 +467,16 @@ class GuruController extends Controller
             'guru bk' => 'guru_bk',
             'kelas bk' => 'guru_bk',
             'bk' => 'guru_bk',
+            'kode/id guru' => 'teacher_code',
+            'kode guru' => 'teacher_code',
+            'kode' => 'teacher_code',
+            'id guru' => 'teacher_code',
+            'mapel' => 'mapel',
+            'jabatan' => 'jabatan',
+            'pendidikan' => 'pendidikan',
+            'golongan' => 'golongan',
+            'jenis kelamin' => 'gender',
+            'jk' => 'gender',
         ];
 
         $columnIndexes = [];
@@ -328,7 +491,7 @@ class GuruController extends Controller
                     $matched[$headerAliases[$norm]] = $colIdx;
                 }
             }
-            if (isset($matched['fullname']) || (isset($matched['username']) && isset($matched['nip']))) {
+            if (isset($matched['fullname']) || (isset($matched['username']) && isset($matched['nip'])) || isset($matched['teacher_code'])) {
                 $columnIndexes = $matched;
                 $dataRows = array_slice($sheetRows, $idx + 1);
                 break;
@@ -361,63 +524,46 @@ class GuruController extends Controller
             if (preg_replace('/[\s\x00-\x1F\x7F]+/', '', $fullname) === '') {
                 continue;
             }
-            if (mb_strtolower($fullname) === 'nama lengkap' || mb_strtolower($fullname) === 'nama') {
+            if (mb_strtolower($fullname) === 'nama lengkap' || mb_strtolower($fullname) === 'nama' || mb_strtolower($fullname) === 'no' || in_array(trim($fullname), ['L', 'P', 'Laki-laki', 'Perempuan'], true) || is_numeric($fullname)) {
                 continue;
             }
 
-            $rawUsername = isset($columnIndexes['username']) && isset($row[$columnIndexes['username']]) ? trim((string) $row[$columnIndexes['username']]) : '';
-            $rawNip = isset($columnIndexes['nip']) && isset($row[$columnIndexes['nip']]) ? trim((string) $row[$columnIndexes['nip']]) : '';
+            $rawUsername = isset($columnIndexes['username']) && isset($row[$columnIndexes['username']]) ? trim((string) $row[$columnIndexes['username']], " \t\n\r\0\x0B`") : '';
+            $rawNip = isset($columnIndexes['nip']) && isset($row[$columnIndexes['nip']]) ? trim((string) $row[$columnIndexes['nip']], " \t\n\r\0\x0B`") : '';
+            $rawCode = isset($columnIndexes['teacher_code']) && isset($row[$columnIndexes['teacher_code']]) ? trim((string) $row[$columnIndexes['teacher_code']]) : '';
             $rawPhone = isset($columnIndexes['phone']) && isset($row[$columnIndexes['phone']]) ? trim((string) $row[$columnIndexes['phone']]) : '';
             $rawEmail = isset($columnIndexes['email']) && isset($row[$columnIndexes['email']]) ? strtolower(trim((string) $row[$columnIndexes['email']])) : '';
             $rawPassword = isset($columnIndexes['password']) && isset($row[$columnIndexes['password']]) ? trim((string) $row[$columnIndexes['password']]) : '';
             $rawWaliKelas = isset($columnIndexes['wali_kelas']) && isset($row[$columnIndexes['wali_kelas']]) ? trim((string) $row[$columnIndexes['wali_kelas']]) : '';
 
-            // Generate username if not provided
+            $nipDigits = preg_replace('/\D/', '', $rawNip);
+            $nip = strlen($nipDigits) >= 8 ? $nipDigits : null;
+
+            // Generate clean username format guru.<kode> (Option 1)
             if ($rawUsername === '') {
-                $baseUser = Str::slug($fullname, '.');
-                if ($baseUser === '') {
-                    $baseUser = 'guru.' . Str::random(5);
+                if ($rawCode !== '' && is_numeric($rawCode)) {
+                    $baseUser = 'guru.'.str_pad((int) $rawCode, 2, '0', STR_PAD_LEFT);
+                } else {
+                    $baseUser = 'guru.'.str_pad(count($teacherRows) + 1, 2, '0', STR_PAD_LEFT);
                 }
                 $finalUser = $baseUser;
                 $counter = 1;
-                while (User::where('username', $finalUser)->exists() || isset($seenUsernames[$finalUser])) {
-                    $finalUser = $baseUser . $counter++;
+                while (isset($seenUsernames[$finalUser])) {
+                    $finalUser = $baseUser.'_'.$counter++;
                 }
                 $username = $finalUser;
             } else {
                 $username = $rawUsername;
-                if (User::where('username', $username)->exists() || isset($seenUsernames[$username])) {
-                    $rowErrors[] = "Baris {$lineNumber}: Username '{$username}' sudah digunakan.";
-                    continue;
-                }
-            }
-
-            $nip = $rawNip !== '' ? $rawNip : null;
-            if ($nip !== null) {
-                if (User::where('nip', $nip)->exists() || isset($seenNips[$nip])) {
-                    $rowErrors[] = "Baris {$lineNumber}: NIP '{$nip}' sudah digunakan.";
-                    continue;
-                }
             }
 
             $email = $rawEmail !== '' ? $rawEmail : null;
             if ($email !== null) {
                 if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                    $rowErrors[] = "Baris {$lineNumber}: Format email '{$email}' tidak valid.";
-                    continue;
-                }
-                if (User::where('email', $email)->exists() || isset($seenEmails[$email])) {
-                    $rowErrors[] = "Baris {$lineNumber}: Email '{$email}' sudah digunakan.";
-                    continue;
+                    $email = null; // Abaikan jika format tidak valid pada sheet
                 }
             }
 
-            $password = $rawPassword !== '' ? $rawPassword : 'password123';
-            if (strlen($password) < 8) {
-                $rowErrors[] = "Baris {$lineNumber}: Password minimal 8 karakter.";
-                continue;
-            }
-
+            $password = $rawPassword !== '' ? $rawPassword : 'smkn1bantul2026';
             $phone = $rawPhone !== '' ? $rawPhone : null;
 
             // Resolve Wali Kelas classes
@@ -435,9 +581,6 @@ class GuruController extends Controller
             $seenUsernames[$username] = true;
             if ($nip !== null) {
                 $seenNips[$nip] = true;
-            }
-            if ($email !== null) {
-                $seenEmails[$email] = true;
             }
 
             $teacherRows[] = [
@@ -459,20 +602,36 @@ class GuruController extends Controller
             throw ValidationException::withMessages(['file' => $rowErrors]);
         }
 
-        DB::transaction(function () use ($teacherRows) {
+        $defaultPassword = Hash::make('smkn1bantul2026');
+
+        DB::transaction(function () use ($teacherRows, $defaultPassword) {
             foreach ($teacherRows as $t) {
-                $existing = User::whereIn('role_id', [2, 5])
-                    ->where('fullname', $t['fullname'])
-                    ->first();
+                $existing = null;
+                if (! empty($t['nip'])) {
+                    $existing = User::where('nip', $t['nip'])->first();
+                }
+                if (! $existing && ! empty($t['username'])) {
+                    $existing = User::where('username', $t['username'])->first();
+                }
+                if (! $existing) {
+                    $existing = User::whereIn('role_id', [2, 5])
+                        ->where('fullname', $t['fullname'])
+                        ->first();
+                }
 
                 $roleId = ! empty($t['class_ids']) ? 5 : 2;
 
+                $passwordHash = $t['password'] === 'smkn1bantul2026'
+                    ? $defaultPassword
+                    : Hash::make($t['password']);
+
                 if ($existing) {
                     $existing->update([
+                        'fullname' => $t['fullname'],
                         'phone' => $t['phone'] ?? $existing->phone,
                         'email' => $t['email'] ?? $existing->email,
                         'nip' => $t['nip'] ?? $existing->nip,
-                        'role_id' => $roleId,
+                        'role_id' => $existing->role_id === 1 ? 1 : $roleId, // Pertahankan waka jika waka
                     ]);
                     $userId = $existing->id;
                 } else {
@@ -482,9 +641,10 @@ class GuruController extends Controller
                         'email' => $t['email'],
                         'nip' => $t['nip'],
                         'phone' => $t['phone'],
-                        'password' => Hash::make($t['password']),
+                        'password' => $passwordHash,
                         'role_id' => $roleId,
                         'is_active' => true,
+                        'must_change_credentials' => true,
                     ]);
                     $userId = $user->id;
                 }
@@ -516,8 +676,8 @@ class GuruController extends Controller
         });
 
         $fileTypeName = $extension === 'pdf' ? 'PDF' : 'Excel';
+
         return redirect()->route('waka.guru.index')
-            ->with('success', count($teacherRows) . " data guru berhasil diimpor dari {$fileTypeName}.");
+            ->with('success', count($teacherRows)." data guru berhasil diimpor dari {$fileTypeName}.");
     }
 }
-

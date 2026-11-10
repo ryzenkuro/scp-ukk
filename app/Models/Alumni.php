@@ -22,7 +22,7 @@ class Alumni extends Model
     ];
 
     protected $casts = [
-        'tanggal_lulus' => 'date',
+        'tanggal_lulus' => 'date:Y-m-d',
     ];
 
     protected $appends = [

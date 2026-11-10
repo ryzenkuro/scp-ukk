@@ -1,5 +1,5 @@
-import React from 'react';
-import { Head, Link } from '@inertiajs/react';
+import React, { useState } from 'react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { AppLayout } from '@/Components/layout/AppLayout';
 import { Card, CardHeader, CardTitle, CardContent } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
@@ -21,8 +21,11 @@ import {
     AlertCircle,
     ArrowRight,
     GraduationCap,
-    Send
+    Send,
+    Eye
 } from 'lucide-react';
+import { formatDateRangeIndo } from '@/lib/utils';
+import { LeaveDetailModal, LeaveDetailData } from '@/Components/modals/LeaveDetailModal';
 
 interface SiswaItem {
     id: number;
@@ -82,20 +85,24 @@ export default function SiswaDashboard({
     stats,
     config,
 }: DashboardProps) {
+    const [selectedDetailLeave, setSelectedDetailLeave] = useState<LeaveDetailData | null>(null);
+    const { auth } = usePage<any>().props;
+    const isOrangTua = auth?.user?.role?.name === 'orang_tua' || auth?.user?.role_id === 6;
+
     return (
-        <AppLayout title="Portal Mandiri Siswa & Orang Tua">
-            <Head title="Dashboard Siswa" />
+        <AppLayout title={isOrangTua ? "Portal Pemantauan Orang Tua Murid" : "Portal Mandiri Siswa & Orang Tua"}>
+            <Head title={isOrangTua ? "Dashboard Orang Tua" : "Dashboard Siswa"} />
 
             <div className="space-y-6">
                 {/* Kartu Profil Siswa */}
                 <Card className="p-6">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
-                            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                Portal Akademik Murid & Orang Tua
+                            <span className={`text-xs font-semibold uppercase tracking-wider ${isOrangTua ? 'text-primary' : 'text-muted-foreground'}`}>
+                                {isOrangTua ? 'Portal Pemantauan Orang Tua Murid' : 'Portal Akademik Murid & Orang Tua'}
                             </span>
                             <h2 className="text-2xl font-bold tracking-tight mt-1">
-                                {student ? student.name : 'Siswa'}
+                                {isOrangTua ? `Memantau Ananda: ${student ? student.name : 'Siswa'}` : (student ? student.name : 'Siswa')}
                             </h2>
                             <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-1">
                                 <span>NIS: <strong className="text-foreground">{student?.nis || '-'}</strong></span>
@@ -281,11 +288,18 @@ export default function SiswaDashboard({
                                                         {leave.type}
                                                     </Badge>
                                                 </TableCell>
-                                                <TableCell className="text-xs font-mono">
-                                                    {leave.start_date} s.d. {leave.end_date}
+                                                <TableCell className="text-xs whitespace-nowrap font-medium">
+                                                    {formatDateRangeIndo(leave.start_date, leave.end_date)}
                                                 </TableCell>
-                                                <TableCell className="text-sm">
-                                                    {leave.reason}
+                                                <TableCell>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setSelectedDetailLeave({ ...leave, student })}
+                                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 transition-colors whitespace-nowrap"
+                                                    >
+                                                        <Eye className="h-3.5 w-3.5" />
+                                                        <span>Lihat Detail</span>
+                                                    </button>
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <Badge
@@ -310,6 +324,12 @@ export default function SiswaDashboard({
                     </CardContent>
                 </Card>
             </div>
+
+            <LeaveDetailModal
+                isOpen={!!selectedDetailLeave}
+                onClose={() => setSelectedDetailLeave(null)}
+                leave={selectedDetailLeave}
+            />
         </AppLayout>
     );
 }

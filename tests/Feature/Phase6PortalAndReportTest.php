@@ -2,9 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Attendance;
 use App\Models\LeaveRequest;
-use App\Models\Schedule;
 use App\Models\Siswa;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -60,6 +58,7 @@ class Phase6PortalAndReportTest extends TestCase
         $siswaUser = User::where('username', '202611001')->first();
         $siswaUser->update(['must_change_credentials' => false]);
 
+        $selfie = UploadedFile::fake()->image('selfie.jpg', 640, 480);
         $attachment = UploadedFile::fake()->create('surat_dokter.pdf', 100, 'application/pdf');
 
         $response = $this->actingAs($siswaUser)->post('/siswa/izin', [
@@ -67,6 +66,7 @@ class Phase6PortalAndReportTest extends TestCase
             'start_date' => '2026-11-10',
             'end_date' => '2026-11-12',
             'reason' => 'Sakit demam dan beristirahat sesuai anjuran dokter',
+            'selfie' => $selfie,
             'attachment' => $attachment,
         ]);
 
@@ -134,4 +134,3 @@ class Phase6PortalAndReportTest extends TestCase
         $this->assertNotNull($leave->verified_at);
     }
 }
-

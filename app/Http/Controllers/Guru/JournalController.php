@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Guru;
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\Journal;
+use App\Models\LeaveRequest;
 use App\Models\Schedule;
 use App\Models\Siswa;
 use App\Models\SystemConfiguration;
@@ -25,7 +26,7 @@ class JournalController extends Controller
         $search = $request->input('search');
         $date = $request->input('date');
 
-        $query = Journal::with(['schedule.schoolClass', 'schedule.room', 'attendances'])
+        $query = Journal::with(['schedule.schoolClass', 'schedule.room', 'attendances.student'])
             ->where('teacher_id', $teacherId)
             ->orderByDesc('date')
             ->orderByDesc('id');
@@ -33,10 +34,10 @@ class JournalController extends Controller
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('topic', 'like', "%{$search}%")
-                  ->orWhereHas('schedule', function ($sq) use ($search) {
-                      $sq->where('subject', 'like', "%{$search}%")
-                         ->orWhere('class_name', 'like', "%{$search}%");
-                  });
+                    ->orWhereHas('schedule', function ($sq) use ($search) {
+                        $sq->where('subject', 'like', "%{$search}%")
+                            ->orWhere('class_name', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -74,12 +75,13 @@ class JournalController extends Controller
 
         $selectedSchedule = null;
         $students = [];
+        $approvedLeaves = [];
 
         if ($selectedScheduleId) {
             $selectedSchedule = $schedules->firstWhere('id', (int) $selectedScheduleId);
         }
 
-        if (!$selectedSchedule && $schedules->isNotEmpty()) {
+        if (! $selectedSchedule && $schedules->isNotEmpty()) {
             $selectedSchedule = $schedules->first();
         }
 
@@ -89,12 +91,19 @@ class JournalController extends Controller
                 ->where('status', 'aktif')
                 ->orderBy('name')
                 ->get();
+
+            // Ambil izin yang disetujui atau ditolak untuk siswa di kelas ini
+            $approvedLeaves = LeaveRequest::whereIn('status', ['approved', 'rejected'])
+                ->whereIn('student_id', $students->pluck('id'))
+                ->get(['id', 'student_id', 'type', 'status', 'start_date', 'end_date', 'reason', 'rejection_reason'])
+                ->toArray();
         }
 
         return Inertia::render('Guru/Journal/Create', [
             'schedules' => $schedules,
             'selectedSchedule' => $selectedSchedule,
             'students' => $students,
+            'approvedLeaves' => $approvedLeaves,
             'todayDate' => now()->toDateString(),
             'activeCycle' => $config->active_cycle,
         ]);
@@ -112,10 +121,16 @@ class JournalController extends Controller
             'date' => ['required', 'date'],
             'topic' => ['required', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],
+            'documentation' => ['required', 'file', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
             'attendances' => ['required', 'array', 'min:1'],
             'attendances.*.student_id' => ['required', 'exists:siswas,id'],
             'attendances.*.status' => ['required', 'in:hadir,sakit,izin,alpa'],
             'attendances.*.notes' => ['nullable', 'string', 'max:255'],
+        ], [
+            'documentation.required' => 'Dokumentasi foto kegiatan KBM wajib dilampirkan (bisa foto langsung atau unggah file).',
+            'documentation.file' => 'Dokumentasi harus berupa berkas gambar.',
+            'documentation.mimes' => 'Format foto dokumentasi harus JPG, JPEG, PNG, atau WEBP.',
+            'documentation.max' => 'Ukuran foto dokumentasi maksimal 10MB.',
         ]);
 
         $schedule = Schedule::findOrFail($validated['schedule_id']);
@@ -124,24 +139,45 @@ class JournalController extends Controller
             abort(403, 'Anda tidak berhak mengisi jurnal untuk jadwal guru lain.');
         }
 
-        DB::transaction(function () use ($validated, $teacherId, $schedule) {
+        $documentationPath = null;
+        if ($request->hasFile('documentation')) {
+            $documentationPath = $request->file('documentation')->store('journal_documentations', 'public');
+        }
+
+        DB::transaction(function () use ($validated, $teacherId, $schedule, $documentationPath) {
             $journal = Journal::create([
                 'schedule_id' => $schedule->id,
                 'teacher_id' => $teacherId,
                 'date' => $validated['date'],
                 'topic' => $validated['topic'],
                 'notes' => $validated['notes'] ?? null,
+                'documentation_path' => $documentationPath,
             ]);
 
             foreach ($validated['attendances'] as $att) {
-                Attendance::create([
-                    'journal_id' => $journal->id,
-                    'student_id' => $att['student_id'],
-                    'schedule_id' => $schedule->id,
-                    'date' => $validated['date'],
-                    'status' => $att['status'],
-                    'notes' => $att['notes'] ?? null,
-                ]);
+                // Periksa apakah sudah ada presensi unattached (dari izin terverifikasi) pada tanggal tersebut
+                $unattached = Attendance::where('student_id', $att['student_id'])
+                    ->whereDate('date', $validated['date'])
+                    ->whereNull('journal_id')
+                    ->first();
+
+                if ($unattached) {
+                    $unattached->update([
+                        'journal_id' => $journal->id,
+                        'schedule_id' => $schedule->id,
+                        'status' => $att['status'],
+                        'notes' => $att['notes'] ?? $unattached->notes,
+                    ]);
+                } else {
+                    Attendance::create([
+                        'journal_id' => $journal->id,
+                        'student_id' => $att['student_id'],
+                        'schedule_id' => $schedule->id,
+                        'date' => $validated['date'],
+                        'status' => $att['status'],
+                        'notes' => $att['notes'] ?? null,
+                    ]);
+                }
             }
         });
 
@@ -163,11 +199,18 @@ class JournalController extends Controller
             'schedule.room',
             'schedule.startSlot',
             'schedule.endSlot',
-            'attendances.student'
+            'attendances.student',
         ]);
+
+        $studentIds = $journal->attendances->pluck('student_id');
+        $approvedLeaves = LeaveRequest::whereIn('status', ['approved', 'rejected'])
+            ->whereIn('student_id', $studentIds)
+            ->get(['id', 'student_id', 'type', 'status', 'start_date', 'end_date', 'reason', 'rejection_reason'])
+            ->toArray();
 
         return Inertia::render('Guru/Journal/Edit', [
             'journal' => $journal,
+            'approvedLeaves' => $approvedLeaves,
         ]);
     }
 
@@ -184,17 +227,28 @@ class JournalController extends Controller
             'date' => ['required', 'date'],
             'topic' => ['required', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],
+            'documentation' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
             'attendances' => ['required', 'array', 'min:1'],
             'attendances.*.student_id' => ['required', 'exists:siswas,id'],
             'attendances.*.status' => ['required', 'in:hadir,sakit,izin,alpa'],
             'attendances.*.notes' => ['nullable', 'string', 'max:255'],
+        ], [
+            'documentation.file' => 'Dokumentasi harus berupa berkas gambar.',
+            'documentation.mimes' => 'Format foto dokumentasi harus JPG, JPEG, PNG, atau WEBP.',
+            'documentation.max' => 'Ukuran foto dokumentasi maksimal 10MB.',
         ]);
 
-        DB::transaction(function () use ($journal, $validated) {
+        $documentationPath = $journal->documentation_path;
+        if ($request->hasFile('documentation')) {
+            $documentationPath = $request->file('documentation')->store('journal_documentations', 'public');
+        }
+
+        DB::transaction(function () use ($journal, $validated, $documentationPath) {
             $journal->update([
                 'date' => $validated['date'],
                 'topic' => $validated['topic'],
                 'notes' => $validated['notes'] ?? null,
+                'documentation_path' => $documentationPath,
             ]);
 
             foreach ($validated['attendances'] as $att) {
@@ -232,4 +286,3 @@ class JournalController extends Controller
         return back()->with('success', "Jurnal KBM \"{$topic}\" dan rekap presensi terkait berhasil dihapus.");
     }
 }
-

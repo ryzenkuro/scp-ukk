@@ -3,18 +3,21 @@
 namespace App\Http\Controllers\Waka;
 
 use App\Http\Controllers\Controller;
+use App\Models\Journal;
 use App\Models\Room;
 use App\Models\Schedule;
 use App\Models\SchoolClass;
 use App\Models\SystemConfiguration;
 use App\Models\TimeSlot;
 use App\Models\User;
+use App\Services\MasterDataService;
+use App\Services\SchedulePdfParserService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -83,6 +86,8 @@ class JadwalController extends Controller
                 'active_cycle' => $config->active_cycle,
                 'is_scheduled_locked' => $config->is_scheduled_locked,
                 'academic_year' => $config->academic_year,
+                'ceremony_cycle_1' => (bool) $config->ceremony_cycle_1,
+                'ceremony_cycle_2' => (bool) $config->ceremony_cycle_2,
             ],
         ]);
     }
@@ -236,6 +241,12 @@ class JadwalController extends Controller
             return back()->with('error', 'Operasi ditolak: Penghapusan jadwal tidak dapat dilakukan karena status jadwal sedang Terkunci oleh Waka Kurikulum.');
         }
 
+        // Proteksi Integritas Relasi: Jadwal yang sudah memiliki riwayat Jurnal KBM tidak boleh dihapus
+        $journalCount = Journal::where('schedule_id', $jadwal->id)->count();
+        if ($journalCount > 0) {
+            return back()->with('error', "Jadwal {$jadwal->subject} ({$jadwal->class_name}) tidak dapat dihapus karena sudah memiliki {$journalCount} catatan Jurnal KBM dan checklist presensi siswa. Jadwal ini menjadi bukti histori pembelajaran sekolah.");
+        }
+
         $subject = $jadwal->subject;
         $jadwal->delete();
 
@@ -288,6 +299,7 @@ class JadwalController extends Controller
         $teacherConflict = $baseQuery()->where('teacher_id', $teacherId)->first();
         if ($teacherConflict) {
             $teacher = User::find($teacherId);
+
             return "Bentrok Tenaga Pendidik: {$teacher->fullname} telah memiliki jadwal mengajar {$teacherConflict->subject} di {$teacherConflict->class_name} pada rentang waktu tersebut.";
         }
 
@@ -295,6 +307,7 @@ class JadwalController extends Controller
         $roomConflict = $baseQuery()->where('room_id', $roomId)->first();
         if ($roomConflict) {
             $room = Room::find($roomId);
+
             return "Bentrok Ruangan: {$room->name} sedang digunakan untuk kelas {$roomConflict->class_name} ({$roomConflict->subject}) pada rentang waktu tersebut.";
         }
 
@@ -302,6 +315,7 @@ class JadwalController extends Controller
         $classConflict = $baseQuery()->where('class_id', $classId)->first();
         if ($classConflict) {
             $schoolClass = SchoolClass::find($classId);
+
             return "Bentrok Kelas: {$schoolClass->name} sudah memiliki jadwal pelajaran {$classConflict->subject} pada rentang waktu tersebut.";
         }
 
@@ -330,6 +344,7 @@ class JadwalController extends Controller
         }
 
         $jadwals = $query->get();
+        $hasCeremony = ((int) $activeCycle === 2) ? (bool) $config->ceremony_cycle_2 : (bool) $config->ceremony_cycle_1;
 
         return view('pdf.jadwal', [
             'documentTitle' => 'JADWAL PELAJARAN SEKOLAH',
@@ -338,6 +353,7 @@ class JadwalController extends Controller
             'activeCycle' => (int) $activeCycle,
             'filterClass' => $filterClass !== 'all' ? $filterClass : null,
             'jadwals' => $jadwals,
+            'hasCeremony' => $hasCeremony,
         ]);
     }
 
@@ -346,7 +362,7 @@ class JadwalController extends Controller
      */
     public function template(): StreamedResponse
     {
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->fromArray([
             'Hari',
@@ -375,7 +391,7 @@ class JadwalController extends Controller
      */
     public function contoh(): StreamedResponse
     {
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->fromArray([
             'Hari',
@@ -407,54 +423,446 @@ class JadwalController extends Controller
     }
 
     /**
-     * Import jadwal pelajaran dari Excel / CSV
+     * Download master data jadwal KBM dalam format Markdown (.md)
+     */
+    public function downloadMaster(Request $request, MasterDataService $masterDataService): StreamedResponse
+    {
+        $cycle = (int) $request->query('cycle', 1);
+        $type = $cycle === 2 ? 'jadwal_2' : 'jadwal_1';
+        $content = $masterDataService->getMasterMarkdownContent($type);
+
+        return response()->streamDownload(
+            function () use ($content) {
+                echo $content;
+            },
+            "master_jadwal_putaran_{$cycle}.md",
+            ['Content-Type' => 'text/markdown; charset=UTF-8']
+        );
+    }
+
+    /**
+     * Import jadwal pelajaran dari Excel / CSV / PDF / Markdown (Mendukung Multi-Upload hingga 4 Berkas)
      */
     public function import(Request $request): RedirectResponse
     {
         $request->validate([
-            'file' => ['required', 'file', 'max:20480'],
+            'file' => ['nullable', 'file', 'max:20480'],
+            'files' => ['nullable', 'array'],
+            'files.*' => ['file', 'max:20480'],
             'cycle_number' => ['nullable', 'in:1,2,auto'],
             'replace_existing' => ['sometimes', 'boolean'],
         ]);
 
-        $file = $request->file('file');
-        $originalName = $file->getClientOriginalName();
-        $extension = strtolower($file->getClientOriginalExtension());
+        $uploadedFiles = $request->file('files') ?: [];
+        if ($request->hasFile('file')) {
+            $uploadedFiles[] = $request->file('file');
+        }
 
-        if (! in_array($extension, ['xlsx', 'xls', 'csv'], true)) {
+        if (empty($uploadedFiles)) {
             throw ValidationException::withMessages([
-                'file' => 'Format file tidak didukung. Harap unggah file .xlsx, .xls, atau .csv.',
+                'file' => 'Harap pilih minimal satu berkas jadwal.',
             ]);
         }
 
         $config = SystemConfiguration::current();
-        $activeCycle = (int) ($config->active_cycle ?? 1);
-
-        $cycleInput = $request->input('cycle_number', 'auto');
-        if ($cycleInput === '1' || $cycleInput === '2') {
-            $targetCycle = (int) $cycleInput;
-        } else {
-            if (preg_match('/(put[_\-\s]*2|putaran[_\-\s]*2)/i', $originalName)) {
-                $targetCycle = 2;
-            } elseif (preg_match('/(put[_\-\s]*1|putaran[_\-\s]*1)/i', $originalName)) {
-                $targetCycle = 1;
-            } else {
-                $targetCycle = $activeCycle;
-            }
-        }
-
         if ($config->is_scheduled_locked) {
             throw ValidationException::withMessages([
-                'file' => "Jadwal sedang dikunci. Buka kunci jadwal sebelum mengimpor jadwal.",
+                'file' => 'Jadwal sedang dikunci. Buka kunci jadwal sebelum mengimpor jadwal.',
             ]);
         }
 
+        $activeCycle = (int) ($config->active_cycle ?? 1);
+        $cycleInput = $request->input('cycle_number', 'auto');
+        $defaultTargetCycle = in_array($cycleInput, ['1', '2'], true) ? (int) $cycleInput : $activeCycle;
+
+        $timeSlots = TimeSlot::orderBy('order')->get();
+        $pdfParser = new SchedulePdfParserService;
+        $masterDataService = new MasterDataService;
+
+        // 1. Klasifikasi Berkas yang Diunggah
+        $classified = [
+            'kelas_1' => null,
+            'kelas_2' => null,
+            'ruang_1' => null,
+            'ruang_2' => null,
+            'markdown' => [],
+            'spreadsheet' => [],
+            'other_pdf' => [],
+        ];
+
+        foreach ($uploadedFiles as $f) {
+            $name = strtolower($f->getClientOriginalName());
+            $ext = strtolower($f->getClientOriginalExtension());
+
+            if ($ext === 'md') {
+                $classified['markdown'][] = $f;
+            } elseif (in_array($ext, ['xlsx', 'xls', 'csv'], true)) {
+                $classified['spreadsheet'][] = $f;
+            } elseif ($ext === 'pdf') {
+                $isRuang = str_contains($name, 'ruang') || str_contains($name, 'ruangan');
+                $isPut2 = str_contains($name, 'put_2') || str_contains($name, 'put 2') || str_contains($name, 'putaran 2') || str_contains($name, 'putaran_2') || str_contains($name, 'sem ganjil 26_27');
+                $isPut1 = str_contains($name, 'put_1') || str_contains($name, 'put 1') || str_contains($name, 'putaran 1') || str_contains($name, 'putaran_1') || str_contains($name, 'rev_sept');
+
+                if ($isRuang) {
+                    if ($isPut2) {
+                        $classified['ruang_2'] = $f;
+                    } elseif ($isPut1) {
+                        $classified['ruang_1'] = $f;
+                    } else {
+                        $classified['other_pdf'][] = ['file' => $f, 'is_ruang' => true];
+                    }
+                } else {
+                    if ($isPut2) {
+                        $classified['kelas_2'] = $f;
+                    } elseif ($isPut1) {
+                        $classified['kelas_1'] = $f;
+                    } else {
+                        $classified['other_pdf'][] = ['file' => $f, 'is_ruang' => false];
+                    }
+                }
+            }
+        }
+
+        // 2. Cabang Eksekusi PDF (Jadwal Kelas & Jadwal Ruangan)
+        $hasPdf = $classified['kelas_1'] || $classified['kelas_2'] || $classified['ruang_1'] || $classified['ruang_2'] || ! empty($classified['other_pdf']);
+
+        if ($hasPdf) {
+            $schedulesToSave = [];
+            $cyclesAffected = [];
+
+            // A. Proses Berkas Jadwal Kelas Putaran 1
+            if ($classified['kelas_1']) {
+                $s1 = $pdfParser->parse($classified['kelas_1']->getRealPath(), 1);
+                $cyclesAffected[1] = true;
+                if ($classified['ruang_1']) {
+                    $r1Map = $pdfParser->parseRoomPdf($classified['ruang_1']->getRealPath(), 1);
+                    $pdfParser->mergeSchedulesWithRooms($s1, $r1Map);
+                } else {
+                    $defaultRuangPath = base_path('tests/JADWAL_RUANG_PUT 1_REVISI_SEPT.pdf');
+                    if (file_exists($defaultRuangPath)) {
+                        $r1Map = $pdfParser->parseRoomPdf($defaultRuangPath, 1);
+                        $pdfParser->mergeSchedulesWithRooms($s1, $r1Map);
+                    }
+                }
+                $schedulesToSave = array_merge($schedulesToSave, $s1);
+            } elseif ($classified['ruang_1']) {
+                // Hanya berkas Ruang 1 yang diunggah: perbarui ruangan jadwal putaran 1 di DB
+                $r1Map = $pdfParser->parseRoomPdf($classified['ruang_1']->getRealPath(), 1);
+                $existingP1 = Schedule::where('cycle_number', 1)->get();
+                $updatedCount = 0;
+                foreach ($existingP1 as $sch) {
+                    $day = $sch->day_of_week;
+                    $normClass = preg_replace('/[^a-z0-9]/', '', strtolower($sch->class_name));
+                    if (isset($r1Map[$day][$normClass])) {
+                        foreach ($r1Map[$day][$normClass] as $slot) {
+                            if ($slot['start'] < $sch->end_time && $slot['end'] > $sch->start_time) {
+                                $sch->room_name = $slot['room'];
+                                $roomObj = Room::firstOrCreate(['name' => $slot['room']]);
+                                $sch->room_id = $roomObj->id;
+                                $sch->save();
+                                $updatedCount++;
+                                break;
+                            }
+                        }
+                    }
+                }
+                $cyclesAffected[1] = true;
+            }
+
+            // B. Proses Berkas Jadwal Kelas Putaran 2
+            if ($classified['kelas_2']) {
+                $s2 = $pdfParser->parse($classified['kelas_2']->getRealPath(), 2);
+                $cyclesAffected[2] = true;
+                if ($classified['ruang_2']) {
+                    $r2Map = $pdfParser->parseRoomPdf($classified['ruang_2']->getRealPath(), 2);
+                    $pdfParser->mergeSchedulesWithRooms($s2, $r2Map);
+                } else {
+                    $defaultRuangPath2 = base_path('tests/JADWAL RUANGAN PUT 2 GANJIL 26_27 OK.pdf');
+                    if (file_exists($defaultRuangPath2)) {
+                        $r2Map = $pdfParser->parseRoomPdf($defaultRuangPath2, 2);
+                        $pdfParser->mergeSchedulesWithRooms($s2, $r2Map);
+                    }
+                }
+                $schedulesToSave = array_merge($schedulesToSave, $s2);
+            } elseif ($classified['ruang_2']) {
+                // Hanya berkas Ruang 2 yang diunggah: perbarui ruangan jadwal putaran 2 di DB
+                $r2Map = $pdfParser->parseRoomPdf($classified['ruang_2']->getRealPath(), 2);
+                $existingP2 = Schedule::where('cycle_number', 2)->get();
+                $updatedCount = 0;
+                foreach ($existingP2 as $sch) {
+                    $day = $sch->day_of_week;
+                    $normClass = preg_replace('/[^a-z0-9]/', '', strtolower($sch->class_name));
+                    if (isset($r2Map[$day][$normClass])) {
+                        foreach ($r2Map[$day][$normClass] as $slot) {
+                            if ($slot['start'] < $sch->end_time && $slot['end'] > $sch->start_time) {
+                                $sch->room_name = $slot['room'];
+                                $roomObj = Room::firstOrCreate(['name' => $slot['room']]);
+                                $sch->room_id = $roomObj->id;
+                                $sch->save();
+                                $updatedCount++;
+                                break;
+                            }
+                        }
+                    }
+                }
+                $cyclesAffected[2] = true;
+            }
+
+            // C. Fallback untuk berkas PDF tunggal tanpa nama putaran spesifik
+            foreach ($classified['other_pdf'] as $op) {
+                $fObj = $op['file'];
+                if ($op['is_ruang']) {
+                    $rMap = $pdfParser->parseRoomPdf($fObj->getRealPath(), $defaultTargetCycle);
+                    $existing = Schedule::where('cycle_number', $defaultTargetCycle)->get();
+                    foreach ($existing as $sch) {
+                        $day = $sch->day_of_week;
+                        $normClass = preg_replace('/[^a-z0-9]/', '', strtolower($sch->class_name));
+                        if (isset($rMap[$day][$normClass])) {
+                            foreach ($rMap[$day][$normClass] as $slot) {
+                                if ($slot['start'] < $sch->end_time && $slot['end'] > $sch->start_time) {
+                                    $sch->room_name = $slot['room'];
+                                    $roomObj = Room::firstOrCreate(['name' => $slot['room']]);
+                                    $sch->room_id = $roomObj->id;
+                                    $sch->save();
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    $cyclesAffected[$defaultTargetCycle] = true;
+                } else {
+                    $sOther = $pdfParser->parse($fObj->getRealPath(), $defaultTargetCycle);
+                    $cyclesAffected[$defaultTargetCycle] = true;
+                    $schedulesToSave = array_merge($schedulesToSave, $sOther);
+                }
+            }
+
+            // Simpan Jadwal Kelas Baru ke Database jika ada
+            $savedCount = 0;
+            if (! empty($schedulesToSave)) {
+                DB::transaction(function () use ($schedulesToSave, $cyclesAffected, $request, $timeSlots, &$savedCount) {
+                    if ($request->boolean('replace_existing')) {
+                        foreach (array_keys($cyclesAffected) as $cyc) {
+                            Schedule::where('cycle_number', $cyc)->delete();
+                        }
+                    }
+
+                    $roomsMap = Room::pluck('id', 'name')->toArray();
+                    $classesMap = SchoolClass::pluck('id', 'name')->toArray();
+                    $teachersMap = User::whereIn('role_id', [1, 2, 5])->pluck('id', 'fullname')->toArray();
+                    $fallbackId = ! empty($teachersMap) ? reset($teachersMap) : 1;
+
+                    foreach ($schedulesToSave as $item) {
+                        $rName = $item['room_name'] ?: 'Ruang Kelas';
+                        if (! isset($roomsMap[$rName])) {
+                            $newRoom = Room::create(['name' => $rName]);
+                            $roomsMap[$rName] = $newRoom->id;
+                        }
+                        $roomId = $roomsMap[$rName];
+
+                        $cName = $item['class_name'];
+                        if (! isset($classesMap[$cName])) {
+                            $newC = SchoolClass::create([
+                                'name' => $cName,
+                                'grade' => str_starts_with($cName, 'XII') ? 'XII' : (str_starts_with($cName, 'XI') ? 'XI' : 'X'),
+                                'jurusan' => 'RPL',
+                            ]);
+                            $classesMap[$cName] = $newC->id;
+                        }
+                        $classId = $classesMap[$cName];
+
+                        $teacherId = $item['teacher_id'];
+                        if (! $teacherId) {
+                            $tName = $item['teacher_name'];
+                            if (isset($teachersMap[$tName])) {
+                                $teacherId = $teachersMap[$tName];
+                            } else {
+                                $normTName = strtoupper(preg_replace('/[^A-Z]/', '', $tName));
+                                foreach ($teachersMap as $origName => $tId) {
+                                    if (strtoupper(preg_replace('/[^A-Z]/', '', $origName)) === $normTName) {
+                                        $teacherId = $tId;
+                                        break;
+                                    }
+                                }
+                                if (! $teacherId) {
+                                    $teacherId = $fallbackId;
+                                }
+                            }
+                        }
+
+                        $startSlot = $timeSlots->firstWhere('start_time', $item['start_time']);
+                        $endSlot = $timeSlots->firstWhere('end_time', $item['end_time']) ?? $startSlot;
+
+                        Schedule::updateOrCreate([
+                            'cycle_number' => $item['cycle_number'],
+                            'day_of_week' => $item['day_of_week'],
+                            'class_id' => $classId,
+                            'start_time' => $item['start_time'],
+                            'end_time' => $item['end_time'],
+                        ], [
+                            'class_name' => $cName,
+                            'subject' => $item['subject'],
+                            'teacher_id' => $teacherId,
+                            'room_name' => $rName,
+                            'room_id' => $roomId,
+                            'start_slot_id' => $startSlot?->id,
+                            'end_slot_id' => $endSlot?->id,
+                            'academic_year' => $item['academic_year'] ?? '2026/2027',
+                        ]);
+
+                        $savedCount++;
+                    }
+                });
+
+                // Perbarui Berkas Master Markdown & JSON
+                try {
+                    $masterDataService->compileJadwal();
+                } catch (\Throwable $e) {
+                    // Non-blocking log
+                }
+            }
+
+            $primaryCycle = ! empty($cyclesAffected) ? array_key_first($cyclesAffected) : $defaultTargetCycle;
+            $totalFiles = count($uploadedFiles);
+
+            return redirect()->route('waka.jadwal.index', ['cycle' => $primaryCycle])
+                ->with('success', "Berhasil memproses {$totalFiles} berkas jadwal pembelajaran & ruangan. Total {$savedCount} sesi KBM berhasil disinkronkan dengan data ruangan presisi.");
+        }
+
+        // 3. Cabang Impor Berkas Markdown Master (.md)
+        if (! empty($classified['markdown'])) {
+            $mdFile = $classified['markdown'][0];
+            $content = (string) file_get_contents($mdFile->getRealPath());
+            $parsedTable = $masterDataService->parseMarkdownTable($content);
+            $parsedSchedules = [];
+
+            foreach ($parsedTable as $row) {
+                $day = trim($row['hari'] ?? '');
+                $className = trim($row['rombel kelas'] ?? ($row['kelas'] ?? ''));
+                $jam = trim($row['jam pelajaran'] ?? ($row['jam'] ?? ($row['sesi jam'] ?? '')));
+                $subject = trim($row['mata pelajaran'] ?? ($row['mapel'] ?? ''));
+                $teacherName = trim($row['guru pengampu'] ?? ($row['guru'] ?? ''));
+                $roomName = trim($row['ruang'] ?? 'Ruang Kelas');
+
+                if ($day === '' || $className === '' || $subject === '') {
+                    continue;
+                }
+
+                $startTime = '07:15:00';
+                $endTime = '09:30:00';
+                if (preg_match('/(\d{1,2}[:\.]\d{2})\s*[-–]\s*(\d{1,2}[:\.]\d{2})/', $jam, $jm)) {
+                    $startTime = str_replace('.', ':', $jm[1]).':00';
+                    $endTime = str_replace('.', ':', $jm[2]).':00';
+                    if (strlen($startTime) === 7) {
+                        $startTime = '0'.$startTime;
+                    }
+                    if (strlen($endTime) === 7) {
+                        $endTime = '0'.$endTime;
+                    }
+                }
+
+                $parsedSchedules[] = [
+                    'day_of_week' => $day,
+                    'cycle_number' => $defaultTargetCycle,
+                    'class_name' => $className,
+                    'subject' => $subject,
+                    'teacher_name' => $teacherName,
+                    'teacher_id' => null,
+                    'room_name' => $roomName !== '' ? $roomName : 'Ruang Kelas',
+                    'start_time' => $startTime,
+                    'end_time' => $endTime,
+                    'academic_year' => '2026/2027',
+                ];
+            }
+
+            if (empty($parsedSchedules)) {
+                throw ValidationException::withMessages([
+                    'file' => 'Tidak ditemukan data jadwal yang valid dalam file Markdown.',
+                ]);
+            }
+
+            $importedCount = 0;
+            DB::transaction(function () use ($parsedSchedules, $defaultTargetCycle, $request, $timeSlots, &$importedCount) {
+                if ($request->boolean('replace_existing')) {
+                    Schedule::where('cycle_number', $defaultTargetCycle)->delete();
+                }
+
+                $roomsMap = Room::pluck('id', 'name')->toArray();
+                $classesMap = SchoolClass::pluck('id', 'name')->toArray();
+                $teachersMap = User::whereIn('role_id', [1, 2, 5])->pluck('id', 'fullname')->toArray();
+                $fallbackId = ! empty($teachersMap) ? reset($teachersMap) : 1;
+
+                foreach ($parsedSchedules as $item) {
+                    $rName = $item['room_name'] ?? 'Ruang Kelas';
+                    if (! isset($roomsMap[$rName])) {
+                        $newRoom = Room::create(['name' => $rName]);
+                        $roomsMap[$rName] = $newRoom->id;
+                    }
+                    $roomId = $roomsMap[$rName];
+
+                    $cName = $item['class_name'];
+                    if (! isset($classesMap[$cName])) {
+                        $newC = SchoolClass::create([
+                            'name' => $cName,
+                            'grade' => str_starts_with($cName, 'XII') ? 'XII' : (str_starts_with($cName, 'XI') ? 'XI' : 'X'),
+                            'jurusan' => 'RPL',
+                        ]);
+                        $classesMap[$cName] = $newC->id;
+                    }
+                    $classId = $classesMap[$cName];
+
+                    $teacherId = null;
+                    $tName = $item['teacher_name'];
+                    if (! empty($tName) && isset($teachersMap[$tName])) {
+                        $teacherId = $teachersMap[$tName];
+                    } else {
+                        $normTName = strtoupper(preg_replace('/[^A-Z]/', '', $tName));
+                        foreach ($teachersMap as $origName => $tId) {
+                            if (strtoupper(preg_replace('/[^A-Z]/', '', $origName)) === $normTName) {
+                                $teacherId = $tId;
+                                break;
+                            }
+                        }
+                    }
+                    if (! $teacherId) {
+                        $teacherId = $fallbackId;
+                    }
+
+                    $startSlot = $timeSlots->firstWhere('start_time', $item['start_time']);
+                    $endSlot = $timeSlots->firstWhere('end_time', $item['end_time']) ?? $startSlot;
+
+                    Schedule::create([
+                        'day_of_week' => $item['day_of_week'],
+                        'cycle_number' => $defaultTargetCycle,
+                        'subject' => $item['subject'],
+                        'teacher_id' => $teacherId,
+                        'class_name' => $cName,
+                        'class_id' => $classId,
+                        'room_name' => $rName,
+                        'room_id' => $roomId,
+                        'start_time' => $item['start_time'],
+                        'end_time' => $item['end_time'],
+                        'start_slot_id' => $startSlot?->id,
+                        'end_slot_id' => $endSlot?->id,
+                        'academic_year' => $item['academic_year'] ?? '2026/2027',
+                    ]);
+
+                    $importedCount++;
+                }
+            });
+
+            return redirect()->route('waka.jadwal.index', ['cycle' => $defaultTargetCycle])
+                ->with('success', "{$importedCount} data jadwal Putaran {$defaultTargetCycle} berhasil diimpor dari file Markdown (.md).");
+        }
+
+        // 4. Cabang Impor Berkas Excel / CSV Spreadsheet Cadangan
+        $spreadsheetFile = ! empty($classified['spreadsheet']) ? $classified['spreadsheet'][0] : $uploadedFiles[0];
         try {
-            $spreadsheet = IOFactory::load($file->getRealPath());
+            $spreadsheet = IOFactory::load($spreadsheetFile->getRealPath());
             $sheetRows = $spreadsheet->getActiveSheet()->toArray(null, true, true, false);
         } catch (\Throwable $e) {
             throw ValidationException::withMessages([
-                'file' => 'Gagal membaca file Excel/CSV: ' . $e->getMessage(),
+                'file' => 'Gagal membaca file Excel/CSV: '.$e->getMessage(),
             ]);
         }
 
@@ -526,30 +934,44 @@ class JadwalController extends Controller
 
         $findSlot = function ($rawStr) use ($timeSlots) {
             $rawStr = trim((string) $rawStr);
-            if ($rawStr === '') return $timeSlots->first();
+            if ($rawStr === '') {
+                return $timeSlots->first();
+            }
 
             if (preg_match('/\b(\d{1,2})\b/', $rawStr, $m)) {
                 $num = (int) $m[1];
                 $matched = $timeSlots->first(function ($s) use ($num) {
-                    return preg_match('/\bJam\s*(?:Ke-?)?\s*' . $num . '\b/i', $s->name);
+                    return preg_match('/\bJam\s*(?:Ke-?)?\s*'.$num.'\b/i', $s->name);
                 });
-                if ($matched) return $matched;
+                if ($matched) {
+                    return $matched;
+                }
             }
 
             $matched = $timeSlots->first(function ($s) use ($rawStr) {
                 return strcasecmp($s->name, $rawStr) === 0;
             });
-            if ($matched) return $matched;
+            if ($matched) {
+                return $matched;
+            }
 
             if (isset($num)) {
                 $matched = $timeSlots->firstWhere('order', $num);
-                if ($matched) return $matched;
+                if ($matched) {
+                    return $matched;
+                }
             }
 
             return $timeSlots->first();
         };
 
-        DB::transaction(function () use ($dataRows, $colIdx, $targetCycle, $teachers, $timeSlots, $config, $findSlot, &$importedCount) {
+        $targetCycle = $defaultTargetCycle;
+
+        DB::transaction(function () use ($dataRows, $colIdx, $targetCycle, $teachers, $config, $findSlot, $request, &$importedCount) {
+            if ($request->boolean('replace_existing')) {
+                Schedule::where('cycle_number', $targetCycle)->delete();
+            }
+
             foreach ($dataRows as $row) {
                 $day = trim((string) ($row[$colIdx['day']] ?? ''));
                 $teacherName = trim((string) ($row[$colIdx['teacher']] ?? ''));
@@ -573,10 +995,10 @@ class JadwalController extends Controller
                         || (isset($t->nip) && strcasecmp($t->nip, $teacherName) === 0);
                 });
 
-                if (!$teacher) {
+                if (! $teacher) {
                     $teacher = User::create([
                         'role_id' => 2,
-                        'username' => Str::slug($teacherName, '.') . rand(100, 999),
+                        'username' => Str::slug($teacherName, '.').rand(100, 999),
                         'fullname' => $teacherName,
                         'password' => Hash::make('smkn1bantul2026'),
                         'is_active' => true,
@@ -632,4 +1054,3 @@ class JadwalController extends Controller
             ->with('success', "{$importedCount} data jadwal berhasil diimpor dari Excel.");
     }
 }
-

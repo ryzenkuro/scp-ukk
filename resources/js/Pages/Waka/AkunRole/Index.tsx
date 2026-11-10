@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { AppLayout } from '@/Components/layout/AppLayout';
 import { Card, CardHeader, CardTitle, CardContent } from '@/Components/ui/card';
@@ -39,7 +39,9 @@ import {
     Info,
     Lock,
     User as UserIcon,
+    Pencil,
 } from 'lucide-react';
+import { Label } from '@/Components/ui/label';
 import { cn } from '@/lib/utils';
 
 interface RoleItem {
@@ -56,9 +58,14 @@ interface UserAccountItem {
     email: string | null;
     phone: string | null;
     nip?: string | null;
+    class_id?: number | null;
     is_active: boolean;
     must_change_credentials: boolean;
     role?: RoleItem;
+    school_class?: {
+        id: number;
+        name: string;
+    };
     student?: {
         nis: string;
         name: string;
@@ -78,22 +85,35 @@ interface PaginatedData<T> {
 interface IndexProps {
     users: PaginatedData<UserAccountItem>;
     roles: RoleItem[];
+    classes?: Array<{ id: number; name: string; grade: string; jurusan: string }>;
     currentWaka?: UserAccountItem;
     filters: {
         search?: string;
         role_id?: string;
+        class_id?: string;
         status?: string;
     };
 }
 
-export default function AkunRoleIndex({ users, roles, filters, currentWaka }: IndexProps) {
+export default function AkunRoleIndex({ users, roles, classes = [], filters, currentWaka }: IndexProps) {
     const { auth } = usePage<any>().props;
 
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
     const [selectedRole, setSelectedRole] = useState(filters.role_id || 'all');
+    const [selectedClass, setSelectedClass] = useState(filters.class_id || 'all');
     const [selectedStatus, setSelectedStatus] = useState(filters.status || 'all');
 
+    const isClassFilterAllowed = useMemo(() => {
+        if (selectedRole === 'all') return false;
+        const roleObj = roles.find((r) => r.id.toString() === selectedRole);
+        return roleObj
+            ? (roleObj.name === 'siswa' || roleObj.name === 'orang_tua')
+            : (selectedRole === '3' || selectedRole === '6');
+    }, [selectedRole, roles]);
+
     const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [editItem, setEditItem] = useState<UserAccountItem | null>(null);
+    const [isEditOpen, setIsEditOpen] = useState(false);
     const [toggleItem, setToggleItem] = useState<UserAccountItem | null>(null);
     const [resetItem, setResetItem] = useState<UserAccountItem | null>(null);
     const [deleteItem, setDeleteItem] = useState<UserAccountItem | null>(null);
@@ -193,27 +213,92 @@ export default function AkunRoleIndex({ users, roles, filters, currentWaka }: In
         must_change_credentials: true,
     });
 
+    const editForm = useForm({
+        fullname: '',
+        username: '',
+        role_id: '2',
+        class_id: '',
+        nip: '',
+        phone: '',
+        email: '',
+        password: '',
+        is_active: true,
+        must_change_credentials: false,
+    });
+
+    const handleOpenEdit = (user: UserAccountItem) => {
+        setEditItem(user);
+        editForm.reset();
+        editForm.setData({
+            fullname: user.fullname || '',
+            username: user.username || '',
+            role_id: user.role_id ? user.role_id.toString() : '2',
+            class_id: user.class_id ? user.class_id.toString() : (user.school_class?.id ? user.school_class.id.toString() : ''),
+            nip: user.nip || '',
+            phone: user.phone || '',
+            email: user.email || '',
+            password: '',
+            is_active: Boolean(user.is_active),
+            must_change_credentials: Boolean(user.must_change_credentials),
+        });
+        setIsEditOpen(true);
+    };
+
+    const submitEdit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editItem) return;
+
+        editForm.put(`/waka/akun/${editItem.id}`, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setIsEditOpen(false);
+                setEditItem(null);
+                editForm.reset();
+            },
+        });
+    };
+
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
         router.get('/waka/akun', {
             search: searchQuery,
             role_id: selectedRole,
+            class_id: isClassFilterAllowed ? selectedClass : 'all',
             status: selectedStatus,
         }, { preserveState: true });
     };
 
     const handleFilterChange = (key: string, value: string) => {
-        const nextFilters = {
+        let nextRole = selectedRole;
+        let nextClass = selectedClass;
+        let nextStatus = selectedStatus;
+
+        if (key === 'role_id') {
+            nextRole = value;
+            setSelectedRole(value);
+            const roleObj = roles.find((r) => r.id.toString() === value);
+            const allowsClass = roleObj
+                ? (roleObj.name === 'siswa' || roleObj.name === 'orang_tua')
+                : (value === '3' || value === '6');
+
+            if (!allowsClass) {
+                nextClass = 'all';
+                setSelectedClass('all');
+            }
+        } else if (key === 'class_id') {
+            nextClass = value;
+            setSelectedClass(value);
+        } else if (key === 'status') {
+            nextStatus = value;
+            setSelectedStatus(value);
+        }
+
+        router.get('/waka/akun', {
             search: searchQuery,
-            role_id: selectedRole,
-            status: selectedStatus,
-            [key]: value,
-        };
-
-        if (key === 'role_id') setSelectedRole(value);
-        if (key === 'status') setSelectedStatus(value);
-
-        router.get('/waka/akun', nextFilters, { preserveState: true });
+            role_id: nextRole,
+            class_id: nextClass,
+            status: nextStatus,
+        }, { preserveState: true });
     };
 
     const submitCreate = (e: React.FormEvent) => {
@@ -295,8 +380,8 @@ export default function AkunRoleIndex({ users, roles, filters, currentWaka }: In
                     </CardHeader>
 
                     <CardContent className="pt-0">
-                        <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                            <div className="md:col-span-2 relative">
+                        <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3">
+                            <div className="sm:col-span-2 lg:col-span-4 relative">
                                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
                                     placeholder="Cari username, nama lengkap, atau email..."
@@ -306,7 +391,7 @@ export default function AkunRoleIndex({ users, roles, filters, currentWaka }: In
                                 />
                             </div>
 
-                            <div>
+                            <div className="lg:col-span-3">
                                 <select
                                     value={selectedRole}
                                     onChange={(e) => handleFilterChange('role_id', e.target.value)}
@@ -319,7 +404,28 @@ export default function AkunRoleIndex({ users, roles, filters, currentWaka }: In
                                 </select>
                             </div>
 
-                            <div>
+                            <div className="lg:col-span-3">
+                                <select
+                                    value={isClassFilterAllowed ? selectedClass : 'all'}
+                                    onChange={(e) => handleFilterChange('class_id', e.target.value)}
+                                    disabled={!isClassFilterAllowed}
+                                    className={`flex h-9 w-full rounded-md border border-input px-3 py-1 text-sm shadow-sm transition-colors ${
+                                        !isClassFilterAllowed
+                                            ? 'bg-muted/50 text-muted-foreground cursor-not-allowed opacity-70'
+                                            : 'bg-transparent text-foreground cursor-pointer'
+                                    }`}
+                                    title={!isClassFilterAllowed ? 'Filter kelas hanya berlaku untuk role Siswa atau Orang Tua' : 'Pilih Kelas'}
+                                >
+                                    <option value="all">
+                                        {!isClassFilterAllowed ? 'Filter Kelas (Khusus Siswa/Ortu)' : 'Semua Kelas'}
+                                    </option>
+                                    {classes?.map((c) => (
+                                        <option key={c.id} value={c.id.toString()}>{c.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="lg:col-span-2">
                                 <select
                                     value={selectedStatus}
                                     onChange={(e) => handleFilterChange('status', e.target.value)}
@@ -338,12 +444,7 @@ export default function AkunRoleIndex({ users, roles, filters, currentWaka }: In
                 <Card className="overflow-hidden">
                     {/* Toolbar Atas Tabel (Posisi Tombol Ganti Waka sesuai kotak merah gambar 1) */}
                     <div className="px-6 py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border bg-card">
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-foreground">Daftar Akun Pengguna</span>
-                            <Badge variant="outline" className="text-xs font-mono font-normal">
-                                Total: {users.total}
-                            </Badge>
-                        </div>
+                        <span className="text-sm font-semibold text-foreground">Daftar Akun Pengguna</span>
 
                         <div className="flex items-center gap-2 self-end sm:self-auto">
                             <Button
@@ -425,6 +526,16 @@ export default function AkunRoleIndex({ users, roles, filters, currentWaka }: In
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <div className="flex items-center justify-end gap-1">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => handleOpenEdit(user)}
+                                                            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                                                            title="Edit Akun & Hak Akses"
+                                                        >
+                                                            <Pencil className="h-3.5 w-3.5" />
+                                                        </Button>
+
                                                         <Button
                                                             variant="ghost"
                                                             size="sm"
@@ -645,6 +756,207 @@ export default function AkunRoleIndex({ users, roles, filters, currentWaka }: In
                             </Button>
                             <Button type="submit" disabled={createForm.processing}>
                                 {createForm.processing ? 'Menyimpan...' : 'Simpan Akun'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal Edit Akun & Hak Akses Pengguna */}
+            <Dialog open={isEditOpen} onOpenChange={(open) => {
+                setIsEditOpen(open);
+                if (!open) {
+                    setEditItem(null);
+                    editForm.reset();
+                }
+            }}>
+                <DialogContent className="max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Pencil className="h-5 w-5 text-primary" />
+                            Edit Akun & Hak Akses Pengguna
+                        </DialogTitle>
+                        <p className="text-xs text-muted-foreground">
+                            Perbarui data profil, peran, kontak, atau kata sandi akun <strong className="text-foreground">{editItem?.username}</strong>.
+                        </p>
+                    </DialogHeader>
+
+                    <form onSubmit={submitEdit} className="space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-1.5 sm:col-span-2">
+                                <Label htmlFor="edit_fullname">Nama Lengkap Pemilik <span className="text-destructive">*</span></Label>
+                                <Input
+                                    id="edit_fullname"
+                                    value={editForm.data.fullname}
+                                    onChange={(e) => editForm.setData('fullname', e.target.value)}
+                                    placeholder="Contoh: Drs. Bambang Santoso / Ahmad Zaki"
+                                    required
+                                />
+                                {editForm.errors.fullname && (
+                                    <p className="text-xs text-destructive">{editForm.errors.fullname}</p>
+                                )}
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <Label htmlFor="edit_username">Username Akun <span className="text-destructive">*</span></Label>
+                                <Input
+                                    id="edit_username"
+                                    value={editForm.data.username}
+                                    onChange={(e) => editForm.setData('username', e.target.value)}
+                                    className="font-mono text-xs"
+                                    placeholder="guru.48 / NIS"
+                                    required
+                                />
+                                {editForm.errors.username && (
+                                    <p className="text-xs text-destructive">{editForm.errors.username}</p>
+                                )}
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <Label htmlFor="edit_role">Peran (Role) <span className="text-destructive">*</span></Label>
+                                <select
+                                    id="edit_role"
+                                    value={editForm.data.role_id}
+                                    onChange={(e) => editForm.setData('role_id', e.target.value)}
+                                    disabled={editItem?.role_id === 1 || editItem?.username === 'waka'}
+                                    className="flex h-9 w-full rounded-md border border-input bg-card px-3 py-1 text-xs shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    {roles.map((r) => (
+                                        <option key={r.id} value={r.id.toString()}>
+                                            {r.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                {editItem?.role_id === 1 && (
+                                    <p className="text-[11px] text-muted-foreground">
+                                        Peran Waka dikunci. Gunakan tombol "Ganti Waka" untuk alih tugas.
+                                    </p>
+                                )}
+                            </div>
+
+                            {(editForm.data.role_id === '5' || editForm.data.role_id === '3') && (
+                                <div className="space-y-1.5 sm:col-span-2">
+                                    <Label htmlFor="edit_class">
+                                        {editForm.data.role_id === '5' ? 'Kelas Binaan (Wali Kelas)' : 'Rombel Kelas Siswa'}
+                                    </Label>
+                                    <select
+                                        id="edit_class"
+                                        value={editForm.data.class_id}
+                                        onChange={(e) => editForm.setData('class_id', e.target.value)}
+                                        className="flex h-9 w-full rounded-md border border-input bg-card px-3 py-1 text-xs shadow-sm"
+                                    >
+                                        <option value="">-- Pilih Rombel Kelas --</option>
+                                        {classes?.map((c) => (
+                                            <option key={c.id} value={c.id.toString()}>
+                                                {c.name} ({c.grade} - {c.jurusan})
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <p className="text-[11px] text-muted-foreground">
+                                        {editForm.data.role_id === '5'
+                                            ? 'Menetapkan kelas ini akan otomatis memperbarui penugasan wali kelas.'
+                                            : 'Menyesuaikan kelas rombel aktif siswa.'}
+                                    </p>
+                                </div>
+                            )}
+
+                            <div className="space-y-1.5">
+                                <Label htmlFor="edit_nip">NIP / Identitas Khusus</Label>
+                                <Input
+                                    id="edit_nip"
+                                    value={editForm.data.nip}
+                                    onChange={(e) => editForm.setData('nip', e.target.value)}
+                                    placeholder="19xxxxxxxxxxxxxx"
+                                    className="text-xs"
+                                />
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <Label htmlFor="edit_email">Alamat Email</Label>
+                                <Input
+                                    id="edit_email"
+                                    type="email"
+                                    value={editForm.data.email}
+                                    onChange={(e) => editForm.setData('email', e.target.value)}
+                                    placeholder="nama@smkn1bantul.sch.id"
+                                    className="text-xs"
+                                />
+                                {editForm.errors.email && (
+                                    <p className="text-xs text-destructive">{editForm.errors.email}</p>
+                                )}
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <Label htmlFor="edit_phone">No. Telepon / WhatsApp</Label>
+                                <Input
+                                    id="edit_phone"
+                                    value={editForm.data.phone}
+                                    onChange={(e) => editForm.setData('phone', e.target.value)}
+                                    placeholder="08xxxxxxxxxx"
+                                    className="text-xs"
+                                />
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <Label htmlFor="edit_password">Kata Sandi Baru (Opsional)</Label>
+                                <Input
+                                    id="edit_password"
+                                    type="password"
+                                    value={editForm.data.password}
+                                    onChange={(e) => editForm.setData('password', e.target.value)}
+                                    placeholder="Kosongkan jika tidak diubah"
+                                    className="text-xs"
+                                />
+                                {editForm.errors.password && (
+                                    <p className="text-xs text-destructive">{editForm.errors.password}</p>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="pt-2 border-t border-border space-y-2">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-0.5">
+                                    <Label htmlFor="edit_is_active" className="text-sm font-medium">Status Akun Aktif</Label>
+                                    <p className="text-xs text-muted-foreground">Akun nonaktif tidak dapat login ke dalam aplikasi.</p>
+                                </div>
+                                <input
+                                    type="checkbox"
+                                    id="edit_is_active"
+                                    checked={editForm.data.is_active}
+                                    disabled={editItem?.role_id === 1 || editItem?.username === 'waka'}
+                                    onChange={(e) => editForm.setData('is_active', e.target.checked)}
+                                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:opacity-50"
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-0.5">
+                                    <Label htmlFor="edit_must_change" className="text-sm font-medium">Wajib Ganti Kredensial</Label>
+                                    <p className="text-xs text-muted-foreground">Wajibkan pengguna menentukan kata sandi baru saat login.</p>
+                                </div>
+                                <input
+                                    type="checkbox"
+                                    id="edit_must_change"
+                                    checked={editForm.data.must_change_credentials}
+                                    onChange={(e) => editForm.setData('must_change_credentials', e.target.checked)}
+                                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                />
+                            </div>
+                        </div>
+
+                        <DialogFooter className="gap-2 sm:gap-0 pt-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                    setIsEditOpen(false);
+                                    setEditItem(null);
+                                }}
+                            >
+                                Batal
+                            </Button>
+                            <Button type="submit" disabled={editForm.processing}>
+                                {editForm.processing ? 'Menyimpan...' : 'Simpan Perubahan'}
                             </Button>
                         </DialogFooter>
                     </form>

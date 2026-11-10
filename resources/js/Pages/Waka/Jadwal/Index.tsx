@@ -38,7 +38,12 @@ import {
     Printer,
     FileSpreadsheet,
     Upload,
-    Download
+    Download,
+    FileText,
+    Layers,
+    CheckCircle2,
+    X,
+    Flag,
 } from 'lucide-react';
 
 interface TimeSlotItem {
@@ -106,6 +111,8 @@ interface IndexProps {
         active_cycle: number;
         is_scheduled_locked: boolean;
         academic_year: string;
+        ceremony_cycle_1?: boolean;
+        ceremony_cycle_2?: boolean;
     };
 }
 
@@ -132,10 +139,95 @@ export default function JadwalIndex({
     const [isImportOpen, setIsImportOpen] = useState(false);
     const [isResetAllOpen, setIsResetAllOpen] = useState(false);
 
-    const importForm = useForm<{ file: File | null; cycle_number: string }>({
+    const importForm = useForm<{
+        file: File | null;
+        files: File[];
+        cycle_number: string;
+    }>({
         file: null,
+        files: [],
         cycle_number: 'auto',
     });
+
+    const getFileClassification = (file: File) => {
+        const name = file.name.toLowerCase();
+        const ext = name.split('.').pop() || '';
+        if (ext === 'md') {
+            return {
+                label: 'Master Markdown (.md)',
+                badgeClass: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300',
+                desc: 'Tabel jadwal kurasi'
+            };
+        }
+        if (['xlsx', 'xls', 'csv'].includes(ext)) {
+            return {
+                label: 'Spreadsheet Excel',
+                badgeClass: 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300 border-green-300',
+                desc: 'Template / Data Jadwal'
+            };
+        }
+        if (ext === 'pdf') {
+            const isRuang = name.includes('ruang') || name.includes('ruangan');
+            const isPut2 = name.includes('put_2') || name.includes('put 2') || name.includes('putaran 2') || name.includes('putaran_2') || name.includes('sem ganjil 26_27');
+            const isPut1 = name.includes('put_1') || name.includes('put 1') || name.includes('putaran 1') || name.includes('putaran_1') || name.includes('rev_sept');
+
+            if (isRuang) {
+                if (isPut2) return {
+                    label: 'Jadwal Ruangan Putaran 2',
+                    badgeClass: 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border-purple-300',
+                    desc: 'Penempatan lab/ruangan siklus 2'
+                };
+                if (isPut1) return {
+                    label: 'Jadwal Ruangan Putaran 1',
+                    badgeClass: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 border-indigo-300',
+                    desc: 'Penempatan lab/ruangan siklus 1'
+                };
+                return {
+                    label: 'Jadwal Ruangan (PDF)',
+                    badgeClass: 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border-purple-300',
+                    desc: 'Matriks ruangan'
+                };
+            } else {
+                if (isPut2) return {
+                    label: 'Jadwal Kelas Putaran 2',
+                    badgeClass: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-300',
+                    desc: 'Jadwal KBM kelas siklus 2'
+                };
+                if (isPut1) return {
+                    label: 'Jadwal Kelas Putaran 1',
+                    badgeClass: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border-blue-300',
+                    desc: 'Jadwal KBM kelas siklus 1'
+                };
+                return {
+                    label: 'Jadwal Kelas (PDF)',
+                    badgeClass: 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 border-sky-300',
+                    desc: 'Matriks FET jadwal'
+                };
+            }
+        }
+        return {
+            label: ext.toUpperCase(),
+            badgeClass: 'bg-slate-100 text-slate-800 border-slate-300',
+            desc: 'Berkas'
+        };
+    };
+
+    const formatFileSize = (bytes: number) => {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    };
+
+    const removeFileAt = (index: number) => {
+        const updated = importForm.data.files.filter((_, i) => i !== index);
+        importForm.setData({
+            ...importForm.data,
+            files: updated,
+            file: updated[0] || null,
+        });
+    };
 
     const resetAllForm = useForm({});
     const submitResetAll = () => {
@@ -226,8 +318,9 @@ export default function JadwalIndex({
 
     const submitImport = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!importForm.data.file) return;
+        if (!importForm.data.file && importForm.data.files.length === 0) return;
         importForm.post('/waka/jadwal/import', {
+            forceFormData: true,
             onSuccess: () => {
                 setIsImportOpen(false);
                 importForm.reset();
@@ -388,6 +481,51 @@ export default function JadwalIndex({
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
+                                {((filters.cycle === '2' ? config?.ceremony_cycle_2 : config?.ceremony_cycle_1) || (filters.cycle === 'all' && (config?.ceremony_cycle_1 || config?.ceremony_cycle_2))) && (filters.day === 'Senin' || filters.day === 'all') && (
+                                    <TableRow className="bg-red-500/10 dark:bg-red-500/15 border-y-2 border-red-300 dark:border-red-800">
+                                        <TableCell className="text-center font-bold text-red-700">*</TableCell>
+                                        <TableCell>
+                                            <div className="flex items-center gap-1.5 font-bold text-red-700">
+                                                <span>Senin</span>
+                                                <Badge variant="outline" className="text-[10px] bg-red-100 text-red-700 border-red-300">
+                                                    {filters.cycle === 'all' ? 'Putaran Aktif' : `Putaran ${filters.cycle}`}
+                                                </Badge>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <span className="font-semibold block text-red-900 dark:text-red-200 text-xs">
+                                                07:15 - 08:00
+                                            </span>
+                                            <span className="text-red-700/80 font-mono text-[11px]">
+                                                Jam Ke-1
+                                            </span>
+                                        </TableCell>
+                                        <TableCell className="font-bold text-red-900 dark:text-red-200">
+                                            <div className="flex items-center gap-1.5">
+                                                <Flag className="h-4 w-4 text-red-600 flex-shrink-0" />
+                                                <span>Upacara Bendera</span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant="outline" className="bg-red-100/60 text-red-800 border-red-300 text-xs font-semibold">
+                                                Semua Kelas
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-sm font-medium text-red-900 dark:text-red-200">
+                                            Seluruh Guru & Tendik
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant="outline" className="text-xs bg-red-100/60 text-red-800 border-red-300">
+                                                Lapangan Upacara
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <Badge className="bg-red-600 text-white text-[11px]">
+                                                Kegiatan Resmi
+                                            </Badge>
+                                        </TableCell>
+                                    </TableRow>
+                                )}
                                 {schedules.length === 0 ? (
                                     <TableRow>
                                         <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
@@ -422,6 +560,11 @@ export default function JadwalIndex({
                                             </TableCell>
                                             <TableCell className="font-medium text-foreground">
                                                 {schedule.subject}
+                                                {schedule.day_of_week === 'Senin' && schedule.start_time.substring(0, 5) === '07:15' && (schedule.cycle_number === 2 ? config?.ceremony_cycle_2 : config?.ceremony_cycle_1) && (
+                                                    <span className="block text-[11px] text-red-600 dark:text-red-400 font-semibold mt-0.5">
+                                                        (Digantikan Upacara Bendera pada siklus ini)
+                                                    </span>
+                                                )}
                                             </TableCell>
                                             <TableCell>
                                                 <Badge variant="secondary" className="font-medium">
@@ -782,23 +925,31 @@ export default function JadwalIndex({
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <FileSpreadsheet className="h-5 w-5 text-emerald-600" />
-                            Import Jadwal Pelajaran (Excel / CSV)
+                            Import Jadwal Pelajaran (PDF / Markdown / Excel)
                         </DialogTitle>
                     </DialogHeader>
                     <form onSubmit={submitImport} className="space-y-4">
-                        <p className="text-xs text-muted-foreground">
-                            Unggah berkas jadwal (.xlsx, .xls, .csv). Sistem otomatis memetakan nama pengampu, rombel kelas, ruang belajar, dan jam sesi pelajaran.
-                        </p>
+                        <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 text-xs text-muted-foreground space-y-1">
+                            <span className="font-semibold text-primary block">Format Resmi PDF & Markdown Didukung:</span>
+                            <p>
+                                Berkas PDF jadwal sekolah (FET) atau tabel Markdown (.md) Putaran 1 & Putaran 2 dapat diunggah langsung. Sistem otomatis memetakan 48 rombel kelas, pengampu, hari KBM, dan jam pelajaran tanpa guru bocor.
+                            </p>
+                        </div>
 
-                        <div className="flex items-center gap-2 text-xs">
+                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                            <a href={`/waka/jadwal/master-md?cycle=${selectedCycle}`} className="inline-flex items-center gap-1 font-semibold text-primary hover:underline">
+                                <Download className="h-3.5 w-3.5" />
+                                Master Markdown Putaran {selectedCycle} (.md)
+                            </a>
+                            <span className="text-muted-foreground">&bull;</span>
                             <a href="/waka/jadwal/template" className="inline-flex items-center gap-1 text-primary hover:underline">
                                 <Download className="h-3.5 w-3.5" />
-                                Download Template Kosong
+                                Template Excel
                             </a>
                             <span className="text-muted-foreground">&bull;</span>
                             <a href="/waka/jadwal/contoh" className="inline-flex items-center gap-1 text-primary hover:underline">
                                 <Download className="h-3.5 w-3.5" />
-                                Download Contoh 5 Jadwal
+                                Contoh 5 Jadwal
                             </a>
                         </div>
 
@@ -810,23 +961,89 @@ export default function JadwalIndex({
                                 onChange={(e) => importForm.setData('cycle_number', e.target.value)}
                                 className="flex h-9 w-full rounded-md border border-input bg-card px-3 py-1 text-xs shadow-sm"
                             >
-                                <option value="auto">Otomatis (Sesuai kolom berkas / putaran aktif)</option>
-                                <option value="1">Khusus Putaran 1</option>
-                                <option value="2">Khusus Putaran 2</option>
+                                <option value="auto">Otomatis (Deteksi dari Nama Berkas / Putaran Aktif)</option>
+                                <option value="1">Khusus Putaran 1 (Siklus 1)</option>
+                                <option value="2">Khusus Putaran 2 (Siklus 2)</option>
                             </select>
                         </div>
 
-                        <div className="space-y-1.5">
-                            <Label htmlFor="import-jadwal-file" className="text-xs">Pilih Berkas Excel/CSV</Label>
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="import-jadwal-file" className="text-xs font-semibold">
+                                    Pilih Berkas Jadwal (Mendukung hingga 4 Berkas Sekaligus)
+                                </Label>
+                                {importForm.data.files.length > 0 && (
+                                    <span className="text-[11px] font-medium text-primary">
+                                        {importForm.data.files.length} berkas dipilih
+                                    </span>
+                                )}
+                            </div>
+
                             <Input
                                 id="import-jadwal-file"
                                 type="file"
-                                accept=".xlsx,.xls,.csv"
-                                onChange={(e) => importForm.setData('file', e.target.files ? e.target.files[0] : null)}
-                                required
+                                multiple
+                                accept=".pdf,.xlsx,.xls,.csv,.md"
+                                onChange={(e) => {
+                                    const selected = e.target.files ? Array.from(e.target.files) : [];
+                                    importForm.setData({
+                                        ...importForm.data,
+                                        files: selected,
+                                        file: selected[0] || null,
+                                    });
+                                }}
                             />
+
+                            {/* Pratinjau Berkas & Auto-Deteksi Jenis Jadwal */}
+                            {importForm.data.files.length > 0 && (
+                                <div className="space-y-1.5 mt-2 max-h-48 overflow-y-auto rounded-md border p-2 bg-muted/20">
+                                    {importForm.data.files.map((f, idx) => {
+                                        const info = getFileClassification(f);
+                                        return (
+                                            <div
+                                                key={idx}
+                                                className="flex items-center justify-between gap-2 p-1.5 rounded-md bg-card border text-xs"
+                                            >
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border shrink-0 ${info.badgeClass}`}>
+                                                        {info.label}
+                                                    </span>
+                                                    <span className="truncate font-mono text-[11px]" title={f.name}>
+                                                        {f.name}
+                                                    </span>
+                                                    <span className="text-[10px] text-muted-foreground shrink-0">
+                                                        ({formatFileSize(f.size)})
+                                                    </span>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeFileAt(idx)}
+                                                    className="text-muted-foreground hover:text-destructive p-0.5"
+                                                    title="Hapus berkas ini"
+                                                >
+                                                    <X className="h-3.5 w-3.5" />
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                            {/* Callout Smart Merger */}
+                            <div className="p-2.5 rounded-md bg-primary/5 border border-primary/20 text-[11px] text-muted-foreground space-y-1">
+                                <p className="font-semibold text-primary flex items-center gap-1">
+                                    <Layers className="h-3.5 w-3.5" /> Smart Merger 4 Berkas:
+                                </p>
+                                <p>
+                                    Anda dapat memilih <strong>Jadwal Kelas (Putaran 1 & 2)</strong> bersamaan dengan <strong>Jadwal Ruangan (Putaran 1 & 2)</strong>. Sistem otomatis menggabungkan penempatan ruangan (Lab, OR, Ruang Kelas) ke setiap sesi pelajaran secara akurat.
+                                </p>
+                            </div>
+
                             {importForm.errors.file && (
                                 <p className="text-xs text-destructive">{importForm.errors.file}</p>
+                            )}
+                            {importForm.errors.files && (
+                                <p className="text-xs text-destructive">{importForm.errors.files}</p>
                             )}
                         </div>
 
@@ -834,9 +1051,15 @@ export default function JadwalIndex({
                             <Button type="button" variant="outline" onClick={() => setIsImportOpen(false)}>
                                 Batal
                             </Button>
-                            <Button type="submit" disabled={importForm.processing || !importForm.data.file} className="gap-2">
+                            <Button
+                                type="submit"
+                                disabled={importForm.processing || (importForm.data.files.length === 0 && !importForm.data.file)}
+                                className="gap-2"
+                            >
                                 <Upload className="h-4 w-4" />
-                                Mulai Import Jadwal
+                                {importForm.data.files.length > 0
+                                    ? `Mulai Import (${importForm.data.files.length} Berkas)`
+                                    : 'Mulai Import Jadwal'}
                             </Button>
                         </DialogFooter>
                     </form>

@@ -17,7 +17,7 @@ class Attendance extends Model
     ];
 
     protected $casts = [
-        'date' => 'date',
+        'date' => 'date:Y-m-d',
     ];
 
     public function journal(): BelongsTo
@@ -35,4 +35,3 @@ class Attendance extends Model
         return $this->belongsTo(Schedule::class);
     }
 }
-

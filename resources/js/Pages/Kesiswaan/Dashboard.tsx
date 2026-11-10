@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import { AppLayout } from '@/Components/layout/AppLayout';
 import { Card, CardHeader, CardTitle, CardContent } from '@/Components/ui/card';
@@ -23,8 +23,11 @@ import {
   FileText,
   Users,
   AlertTriangle,
-  GraduationCap
+  GraduationCap,
+  Eye
 } from 'lucide-react';
+import { formatDateRangeIndo } from '@/lib/utils';
+import { LeaveDetailModal, LeaveDetailData } from '@/Components/modals/LeaveDetailModal';
 
 interface ScheduleItem {
   id: number;
@@ -87,6 +90,7 @@ export default function Dashboard({
   jadwals = [], 
   recentLeaves = [] 
 }: DashboardProps) {
+  const [selectedDetailLeave, setSelectedDetailLeave] = useState<LeaveDetailData | null>(null);
   const formatTime = (timeStr: string) => {
     return timeStr ? timeStr.substring(0, 5) : '';
   };
@@ -276,11 +280,18 @@ export default function Dashboard({
                           {leave.type}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {leave.start_date} {leave.end_date !== leave.start_date ? `s/d ${leave.end_date}` : ''}
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {formatDateRangeIndo(leave.start_date, leave.end_date)}
                       </TableCell>
-                      <TableCell className="max-w-xs truncate text-xs">
-                        {leave.reason}
+                      <TableCell>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDetailLeave(leave)}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 transition-colors whitespace-nowrap"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          <span>Lihat Detail</span>
+                        </button>
                       </TableCell>
                       <TableCell className="text-center">
                         {leave.status === 'approved' ? (
@@ -378,6 +389,12 @@ export default function Dashboard({
           </Card>
         )}
       </div>
+
+      <LeaveDetailModal
+        isOpen={!!selectedDetailLeave}
+        onClose={() => setSelectedDetailLeave(null)}
+        leave={selectedDetailLeave}
+      />
     </AppLayout>
   );
 }

@@ -14,6 +14,7 @@ class LeaveRequest extends Model
         'end_date',
         'reason',
         'attachment_path',
+        'selfie_path',
         'status',
         'verified_by',
         'verified_at',
@@ -21,8 +22,8 @@ class LeaveRequest extends Model
     ];
 
     protected $casts = [
-        'start_date' => 'date',
-        'end_date' => 'date',
+        'start_date' => 'date:Y-m-d',
+        'end_date' => 'date:Y-m-d',
         'verified_at' => 'datetime',
     ];
 
@@ -36,4 +37,3 @@ class LeaveRequest extends Model
         return $this->belongsTo(User::class, 'verified_by');
     }
 }
-

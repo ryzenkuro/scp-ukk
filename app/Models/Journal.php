@@ -14,11 +14,21 @@ class Journal extends Model
         'date',
         'topic',
         'notes',
+        'documentation_path',
     ];
 
     protected $casts = [
-        'date' => 'date',
+        'date' => 'date:Y-m-d',
     ];
+
+    protected $appends = [
+        'documentation_url',
+    ];
+
+    public function getDocumentationUrlAttribute(): ?string
+    {
+        return $this->documentation_path ? asset('storage/'.$this->documentation_path) : null;
+    }
 
     public function schedule(): BelongsTo
     {
@@ -35,4 +45,3 @@ class Journal extends Model
         return $this->hasMany(Attendance::class);
     }
 }
-

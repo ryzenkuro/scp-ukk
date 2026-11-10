@@ -28,13 +28,24 @@ import {
     Trash2,
     AlertTriangle,
     Calendar,
-    Users
+    Users,
+    Eye,
 } from 'lucide-react';
+import { formatDateIndo } from '@/lib/utils';
+import { JournalDetailModal, JournalDetailData } from '@/Components/modals/JournalDetailModal';
 
 interface AttendanceItem {
     id: number;
     student_id: number;
     status: 'hadir' | 'sakit' | 'izin' | 'alpa';
+    notes?: string | null;
+    student?: {
+        id: number;
+        nis: string;
+        name: string;
+        gender?: 'L' | 'P';
+        kelas?: string;
+    };
 }
 
 interface JournalItem {
@@ -44,10 +55,16 @@ interface JournalItem {
     date: string;
     topic: string;
     notes: string | null;
+    documentation_path?: string | null;
+    documentation_url?: string | null;
     schedule?: {
+        id: number;
         subject: string;
         class_name: string;
-        room_name: string | null;
+        room_name?: string | null;
+        room?: {
+            name: string;
+        } | null;
     };
     attendances?: AttendanceItem[];
 }
@@ -73,6 +90,7 @@ export default function JournalIndex({ journals, filters }: IndexProps) {
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
     const [selectedDate, setSelectedDate] = useState(filters.date || '');
     const [deleteItem, setDeleteItem] = useState<JournalItem | null>(null);
+    const [selectedDetailJournal, setSelectedDetailJournal] = useState<JournalItem | null>(null);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -156,34 +174,26 @@ export default function JournalIndex({ journals, filters }: IndexProps) {
                                     <TableHead className="w-12 text-center">No</TableHead>
                                     <TableHead>Tanggal</TableHead>
                                     <TableHead>Mata Pelajaran & Kelas</TableHead>
-                                    <TableHead>Topik / Materi Pembelajaran</TableHead>
-                                    <TableHead className="text-center">Presensi Siswa</TableHead>
-                                    <TableHead>Catatan KBM</TableHead>
+                                    <TableHead className="text-center">Detail Jurnal & Presensi</TableHead>
                                     <TableHead className="text-right">Aksi</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {journals.data.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                                        <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
                                             Tidak ada riwayat jurnal KBM yang ditemukan.
                                         </TableCell>
                                     </TableRow>
                                 ) : (
                                     journals.data.map((journal, idx) => {
-                                        const hadir = countStatus(journal.attendances, 'hadir');
-                                        const sakit = countStatus(journal.attendances, 'sakit');
-                                        const izin = countStatus(journal.attendances, 'izin');
-                                        const alpa = countStatus(journal.attendances, 'alpa');
-                                        const total = (journal.attendances || []).length;
-
                                         return (
                                             <TableRow key={journal.id}>
                                                 <TableCell className="text-center font-mono text-xs">
                                                     {(journals.current_page - 1) * 15 + idx + 1}
                                                 </TableCell>
-                                                <TableCell className="text-xs font-mono font-medium whitespace-nowrap">
-                                                    {journal.date}
+                                                <TableCell className="text-xs font-medium whitespace-nowrap">
+                                                    {formatDateIndo(journal.date)}
                                                 </TableCell>
                                                 <TableCell>
                                                     <span className="font-medium text-foreground block">
@@ -193,30 +203,16 @@ export default function JournalIndex({ journals, filters }: IndexProps) {
                                                         {journal.schedule?.class_name || '-'}
                                                     </Badge>
                                                 </TableCell>
-                                                <TableCell className="font-medium max-w-xs">
-                                                    {journal.topic}
-                                                </TableCell>
                                                 <TableCell className="text-center">
-                                                    <div className="flex items-center justify-center gap-1 text-xs font-mono">
-                                                        <span className="bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded font-semibold" title="Hadir">
-                                                            H:{hadir}
-                                                        </span>
-                                                        <span className="bg-muted px-1.5 py-0.5 rounded" title="Sakit">
-                                                            S:{sakit}
-                                                        </span>
-                                                        <span className="bg-muted px-1.5 py-0.5 rounded" title="Izin">
-                                                            I:{izin}
-                                                        </span>
-                                                        <span className={`px-1.5 py-0.5 rounded font-semibold ${alpa > 0 ? 'bg-destructive/15 text-destructive' : 'bg-muted'}`} title="Alpa">
-                                                            A:{alpa}
-                                                        </span>
-                                                    </div>
-                                                    <span className="text-[10px] text-muted-foreground block mt-0.5">
-                                                        Total: {total} murid
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell className="text-xs text-muted-foreground max-w-xs truncate">
-                                                    {journal.notes || '-'}
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => setSelectedDetailJournal(journal)}
+                                                        className="h-8 gap-1.5 text-xs font-semibold bg-slate-50 hover:bg-slate-100 border-slate-200 dark:bg-slate-900 dark:border-slate-800 text-foreground shadow-2xs"
+                                                    >
+                                                        <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                                                        Lihat Detail
+                                                    </Button>
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <div className="flex items-center justify-end gap-1">
@@ -300,6 +296,13 @@ export default function JournalIndex({ journals, filters }: IndexProps) {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Modal Detail Jurnal & Presensi */}
+            <JournalDetailModal
+                isOpen={!!selectedDetailJournal}
+                onClose={() => setSelectedDetailJournal(null)}
+                journal={selectedDetailJournal}
+            />
         </AppLayout>
     );
 }

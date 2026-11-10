@@ -34,8 +34,31 @@ import {
     FileSpreadsheet,
     Upload,
     Download,
-    AlertCircle
+    AlertCircle,
+    UserCheck
 } from 'lucide-react';
+
+interface SchoolClassData {
+    id: number;
+    name: string;
+    grade: string;
+    jurusan: string;
+    student_count: number;
+    homeroom_teacher: {
+        id: number;
+        fullname: string;
+        username: string;
+        nip?: string;
+    } | null;
+}
+
+interface TeacherOption {
+    id: number;
+    fullname: string;
+    username: string;
+    nip?: string;
+    role_id: number;
+}
 
 interface SiswaItem {
     id: number;
@@ -79,9 +102,36 @@ interface IndexProps {
     };
     kelasList: string[];
     angkatanList: number[];
+    classesData?: SchoolClassData[];
+    teachersList?: TeacherOption[];
 }
 
-export default function SiswaIndex({ siswas, filters, kelasList, angkatanList }: IndexProps) {
+export default function SiswaIndex({ siswas, filters, kelasList, angkatanList, classesData = [], teachersList = [] }: IndexProps) {
+    const [activeTab, setActiveTab] = useState<'siswa' | 'rombel'>('siswa');
+    const [assignHomeroomClass, setAssignHomeroomClass] = useState<SchoolClassData | null>(null);
+    const assignHomeroomForm = useForm({
+        class_id: '',
+        teacher_id: '',
+    });
+
+    const openAssignHomeroom = (cls: SchoolClassData) => {
+        setAssignHomeroomClass(cls);
+        assignHomeroomForm.setData({
+            class_id: cls.id.toString(),
+            teacher_id: cls.homeroom_teacher?.id?.toString() || '',
+        });
+    };
+
+    const submitAssignHomeroom = (e: React.FormEvent) => {
+        e.preventDefault();
+        assignHomeroomForm.post('/waka/siswa/assign-homeroom', {
+            onSuccess: () => {
+                setAssignHomeroomClass(null);
+                assignHomeroomForm.reset();
+            },
+        });
+    };
+
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
     const [selectedKelas, setSelectedKelas] = useState(filters.kelas || 'all');
     const [selectedStatus, setSelectedStatus] = useState(filters.status || 'aktif');
@@ -243,8 +293,38 @@ export default function SiswaIndex({ siswas, filters, kelasList, angkatanList }:
             <Head title="Data Siswa" />
 
             <div className="space-y-6">
-                {/* Header Actions Card */}
-                <Card>
+                {/* Sub-navigasi Tab: Daftar Siswa vs Kelola Rombel & Wali Kelas */}
+                <div className="flex border-b border-border space-x-6">
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('siswa')}
+                        className={`pb-3 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${
+                            activeTab === 'siswa'
+                                ? 'border-primary text-primary'
+                                : 'border-transparent text-muted-foreground hover:text-foreground'
+                        }`}
+                    >
+                        <Users className="h-4 w-4" />
+                        Daftar Siswa ({siswas.total})
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('rombel')}
+                        className={`pb-3 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${
+                            activeTab === 'rombel'
+                                ? 'border-primary text-primary'
+                                : 'border-transparent text-muted-foreground hover:text-foreground'
+                        }`}
+                    >
+                        <GraduationCap className="h-4 w-4" />
+                        Kelola Rombel &amp; Wali Kelas ({classesData.length > 0 ? classesData.length : 48} Rombel)
+                    </button>
+                </div>
+
+                {activeTab === 'siswa' && (
+                    <>
+                        {/* Header Actions Card */}
+                        <Card>
                     <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4">
                         <div>
                             <CardTitle className="text-xl font-bold tracking-tight">
@@ -255,14 +335,14 @@ export default function SiswaIndex({ siswas, filters, kelasList, angkatanList }:
                             </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                            {/* Tombol Import Excel */}
+                            {/* Tombol Import Excel / Markdown */}
                             <Button
                                 variant="outline"
                                 onClick={() => setIsImportOpen(true)}
                                 className="gap-2"
                             >
                                 <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
-                                Import Excel
+                                Import Berkas
                             </Button>
 
                             {/* Tombol Hapus per Kelas */}
@@ -490,7 +570,97 @@ export default function SiswaIndex({ siswas, filters, kelasList, angkatanList }:
                         </div>
                     )}
                 </Card>
-            </div>
+            </>
+        )}
+
+        {activeTab === 'rombel' && (
+            <Card>
+                <div className="p-4 border-b border-border flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                    <div>
+                        <h3 className="font-semibold text-sm">Daftar Rombongan Belajar &amp; Penugasan Wali Kelas</h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                            Total 48 rombel KBM aktif. Setiap wali kelas berwenang mengelola data siswa, menyetujui izin, dan memantau presensi rombel.
+                        </p>
+                    </div>
+                    <Badge variant="outline" className="text-xs w-fit">
+                        Tahun Ajaran 2026/2027
+                    </Badge>
+                </div>
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="w-12 text-center">No</TableHead>
+                                <TableHead>Rombel Kelas</TableHead>
+                                <TableHead>Tingkat &amp; Jurusan</TableHead>
+                                <TableHead className="text-center">Siswa Aktif</TableHead>
+                                <TableHead>Wali Kelas Saat Ini</TableHead>
+                                <TableHead className="text-right">Aksi Penugasan</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {classesData && classesData.length > 0 ? (
+                                classesData.map((cls, idx) => (
+                                    <TableRow key={cls.id}>
+                                        <TableCell className="text-center font-mono text-xs">{idx + 1}</TableCell>
+                                        <TableCell className="font-bold text-sm">
+                                            {cls.name}
+                                        </TableCell>
+                                        <TableCell className="text-xs">
+                                            <Badge variant="outline" className="mr-1.5">{cls.grade}</Badge>
+                                            <span className="text-muted-foreground">{cls.jurusan}</span>
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <Badge variant="secondary" className="font-semibold">
+                                                {cls.student_count} Siswa
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            {cls.homeroom_teacher ? (
+                                                <div className="flex items-center gap-2">
+                                                    <div className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
+                                                        {cls.homeroom_teacher.fullname.charAt(0)}
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-medium text-xs">{cls.homeroom_teacher.fullname}</p>
+                                                        <p className="text-[10px] text-muted-foreground font-mono">
+                                                            {cls.homeroom_teacher.nip ? `NIP: ${cls.homeroom_teacher.nip}` : `@${cls.homeroom_teacher.username}`}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <Badge variant="outline" className="text-amber-600 bg-amber-50 dark:bg-amber-950/30 border-amber-200 text-xs gap-1">
+                                                    <AlertCircle className="h-3 w-3" />
+                                                    Belum Ditugaskan
+                                                </Badge>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => openAssignHomeroom(cls)}
+                                                className="gap-1.5 text-xs h-8"
+                                            >
+                                                <UserCheck className="h-3.5 w-3.5" />
+                                                {cls.homeroom_teacher ? 'Ganti Wali Kelas' : 'Tugaskan Wali Kelas'}
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                                        Tidak ada data rombel kelas ditemukan.
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </Card>
+        )}
+    </div>
 
             {/* Modal Tambah Siswa */}
             <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
@@ -790,38 +960,43 @@ export default function SiswaIndex({ siswas, filters, kelasList, angkatanList }:
                 </DialogContent>
             </Dialog>
 
-            {/* Modal Import Excel */}
+            {/* Modal Import Excel / Markdown */}
             <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <FileSpreadsheet className="h-5 w-5 text-emerald-600" />
-                            Import Data Siswa dari Excel
+                            Import Data Siswa (Excel / Markdown)
                         </DialogTitle>
                     </DialogHeader>
                     <form onSubmit={submitImport} className="space-y-4">
                         <p className="text-xs text-muted-foreground">
-                            Unggah berkas spreadsheet berisi data siswa (.xlsx, .xls, .csv). Format mendukung template baku maupun buku absensi daftar hadir.
+                            Unggah berkas spreadsheet (.xlsx, .xls, .csv) atau berkas master Markdown (.md). Format mendukung multi-sheet daftar hadir dan otomatis membuat akun orang tua terhubung.
                         </p>
 
-                        <div className="flex items-center gap-2 text-xs">
+                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                            <a href="/waka/siswa/master-md" className="inline-flex items-center gap-1 font-semibold text-primary hover:underline">
+                                <Download className="h-3.5 w-3.5" />
+                                Master Markdown (.md)
+                            </a>
+                            <span className="text-muted-foreground">&bull;</span>
                             <a href="/waka/siswa/template" className="inline-flex items-center gap-1 text-primary hover:underline">
                                 <Download className="h-3.5 w-3.5" />
-                                Download Template Kosong
+                                Template Excel
                             </a>
                             <span className="text-muted-foreground">&bull;</span>
                             <a href="/waka/siswa/contoh" className="inline-flex items-center gap-1 text-primary hover:underline">
                                 <Download className="h-3.5 w-3.5" />
-                                Download Contoh 5 Siswa
+                                Contoh 5 Siswa
                             </a>
                         </div>
 
                         <div className="space-y-1.5">
-                            <Label htmlFor="import-file" className="text-xs">Pilih Berkas Excel/CSV</Label>
+                            <Label htmlFor="import-file" className="text-xs">Pilih Berkas (.xlsx, .xls, .csv, .md)</Label>
                             <Input
                                 id="import-file"
                                 type="file"
-                                accept=".xlsx,.xls,.csv,.txt"
+                                accept=".xlsx,.xls,.csv,.txt,.md"
                                 onChange={(e) => importForm.setData('file', e.target.files ? e.target.files[0] : null)}
                                 required
                             />
@@ -902,6 +1077,56 @@ export default function SiswaIndex({ siswas, filters, kelasList, angkatanList }:
                             >
                                 <Trash2 className="h-4 w-4" />
                                 Hapus Siswa Kelas
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal Tugaskan Wali Kelas */}
+            <Dialog open={!!assignHomeroomClass} onOpenChange={(open) => !open && setAssignHomeroomClass(null)}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <UserCheck className="h-5 w-5 text-primary" />
+                            Tugaskan Wali Kelas {assignHomeroomClass?.name}
+                        </DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={submitAssignHomeroom} className="space-y-4">
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                            Pilih tenaga pendidik resmi untuk membina rombongan belajar <strong>{assignHomeroomClass?.name}</strong>. Guru yang ditugaskan akan memiliki akses ke portal wali kelas, verifikasi izin, dan pemantauan rekap presensi kelas ini.
+                        </p>
+
+                        <div className="space-y-1.5">
+                            <Label htmlFor="homeroom-teacher-select" className="text-xs font-semibold">
+                                Pilih Tenaga Pendidik / Wali Kelas *
+                            </Label>
+                            <select
+                                id="homeroom-teacher-select"
+                                value={assignHomeroomForm.data.teacher_id}
+                                onChange={(e) => assignHomeroomForm.setData('teacher_id', e.target.value)}
+                                className="flex h-9 w-full rounded-md border border-input bg-card px-3 py-1 text-xs shadow-sm"
+                                required
+                            >
+                                <option value="">-- Pilih Guru Pengampu --</option>
+                                {teachersList?.map((t) => (
+                                    <option key={t.id} value={t.id.toString()}>
+                                        {t.fullname} {t.nip ? `(NIP: ${t.nip})` : `@${t.username}`} {t.role_id === 5 ? '• [Wali Kelas]' : ''}
+                                    </option>
+                                ))}
+                            </select>
+                            {assignHomeroomForm.errors.teacher_id && (
+                                <p className="text-xs text-destructive">{assignHomeroomForm.errors.teacher_id}</p>
+                            )}
+                        </div>
+
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setAssignHomeroomClass(null)}>
+                                Batal
+                            </Button>
+                            <Button type="submit" disabled={assignHomeroomForm.processing || !assignHomeroomForm.data.teacher_id} className="gap-2">
+                                <UserCheck className="h-4 w-4" />
+                                Simpan Penugasan
                             </Button>
                         </DialogFooter>
                     </form>

@@ -8,6 +8,8 @@ class SystemConfiguration extends Model
 {
     protected $fillable = [
         'active_cycle',
+        'ceremony_cycle_1',
+        'ceremony_cycle_2',
         'is_scheduled_locked',
         'cycle_one_locked',
         'cycle_two_locked',
@@ -15,6 +17,8 @@ class SystemConfiguration extends Model
     ];
 
     protected $casts = [
+        'ceremony_cycle_1' => 'boolean',
+        'ceremony_cycle_2' => 'boolean',
         'is_scheduled_locked' => 'boolean',
         'cycle_one_locked' => 'boolean',
         'cycle_two_locked' => 'boolean',
@@ -25,11 +29,20 @@ class SystemConfiguration extends Model
     {
         return self::firstOrCreate([], [
             'active_cycle' => 1,
+            'ceremony_cycle_1' => false,
+            'ceremony_cycle_2' => false,
             'is_scheduled_locked' => false,
             'cycle_one_locked' => false,
             'cycle_two_locked' => false,
             'academic_year' => '2026/2027',
         ]);
+    }
+
+    public function hasCeremony(?int $cycle = null): bool
+    {
+        $targetCycle = $cycle ?? (int) $this->active_cycle;
+
+        return $targetCycle === 2 ? (bool) $this->ceremony_cycle_2 : (bool) $this->ceremony_cycle_1;
     }
 
     /**
@@ -43,10 +56,10 @@ class SystemConfiguration extends Model
         $month = (int) $now->format('n');
 
         if ($month >= 7) {
-            return "{$year}/" . ($year + 1);
+            return "{$year}/".($year + 1);
         }
 
-        return ($year - 1) . "/{$year}";
+        return ($year - 1)."/{$year}";
     }
 
     /**
@@ -62,4 +75,3 @@ class SystemConfiguration extends Model
         return false;
     }
 }
-

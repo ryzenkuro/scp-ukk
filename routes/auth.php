@@ -6,7 +6,7 @@ use App\Http\Controllers\Auth\EmailVerificationNotificationController;
 use App\Http\Controllers\Auth\EmailVerificationPromptController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordController;
-use App\Http\Controllers\Auth\PasswordResetLinkController;
+use App\Http\Controllers\Auth\PasswordResetOtpController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Route;
@@ -22,10 +22,19 @@ Route::middleware('guest')->group(function () {
 
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
 
-    Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
+    Route::get('forgot-password', [PasswordResetOtpController::class, 'create'])
         ->name('password.request');
 
-    Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])
+    Route::post('forgot-password/send-otp', [PasswordResetOtpController::class, 'sendOtp'])
+        ->name('password.send_otp');
+
+    Route::post('forgot-password/verify-otp', [PasswordResetOtpController::class, 'verifyOtp'])
+        ->name('password.verify_otp');
+
+    Route::post('forgot-password/reset', [PasswordResetOtpController::class, 'resetPassword'])
+        ->name('password.reset_otp');
+
+    Route::post('forgot-password', [PasswordResetOtpController::class, 'sendOtp'])
         ->name('password.email');
 
     Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])

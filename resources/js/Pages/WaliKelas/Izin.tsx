@@ -27,8 +27,10 @@ import {
   CheckCircle2, 
   XCircle, 
   Clock, 
-  ExternalLink 
+  Eye
 } from 'lucide-react';
+import { formatDateRangeIndo } from '@/lib/utils';
+import { LeaveDetailModal, LeaveDetailData } from '@/Components/modals/LeaveDetailModal';
 
 interface LeaveItem {
   id: number;
@@ -77,6 +79,7 @@ interface IzinProps {
 
 export default function Izin({ classNames = [], leaves, stats, filters }: IzinProps) {
   const [selectedLeave, setSelectedLeave] = useState<LeaveItem | null>(null);
+  const [selectedDetailLeave, setSelectedDetailLeave] = useState<LeaveDetailData | null>(null);
   const [actionType, setActionType] = useState<'approved' | 'rejected' | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -233,7 +236,6 @@ export default function Izin({ classNames = [], leaves, stats, filters }: IzinPr
                   <TableHead>Jenis</TableHead>
                   <TableHead>Tanggal Izin</TableHead>
                   <TableHead>Alasan</TableHead>
-                  <TableHead>Bukti</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Tindakan</TableHead>
                 </TableRow>
@@ -241,7 +243,7 @@ export default function Izin({ classNames = [], leaves, stats, filters }: IzinPr
               <TableBody>
                 {leaves.data.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                       Tidak ada permohonan izin dari kelas binaan Anda.
                     </TableCell>
                   </TableRow>
@@ -273,30 +275,17 @@ export default function Izin({ classNames = [], leaves, stats, filters }: IzinPr
                         </Badge>
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                        {leave.start_date} {leave.end_date !== leave.start_date ? `s/d ${leave.end_date}` : ''}
-                      </TableCell>
-                      <TableCell className="max-w-[200px] text-xs">
-                        <p className="line-clamp-2">{leave.reason}</p>
-                        {leave.rejection_reason && (
-                          <p className="text-[11px] text-destructive mt-1 font-medium">
-                            Catatan: {leave.rejection_reason}
-                          </p>
-                        )}
+                        {formatDateRangeIndo(leave.start_date, leave.end_date)}
                       </TableCell>
                       <TableCell>
-                        {leave.attachment_path ? (
-                          <a
-                            href={`/storage/${leave.attachment_path}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1 text-xs text-primary hover:underline font-medium"
-                          >
-                            <ExternalLink className="h-3 w-3" />
-                            <span>Lihat Foto</span>
-                          </a>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">-</span>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDetailLeave(leave)}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 transition-colors whitespace-nowrap"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          <span>Lihat Detail</span>
+                        </button>
                       </TableCell>
                       <TableCell>
                         {leave.status === 'pending' && (
@@ -423,6 +412,12 @@ export default function Izin({ classNames = [], leaves, stats, filters }: IzinPr
           </form>
         </DialogContent>
       </Dialog>
+
+      <LeaveDetailModal
+        isOpen={!!selectedDetailLeave}
+        onClose={() => setSelectedDetailLeave(null)}
+        leave={selectedDetailLeave}
+      />
     </AppLayout>
   );
 }

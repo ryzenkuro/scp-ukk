@@ -4,14 +4,32 @@ namespace App\Http\Controllers\Waka;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\MasterDataService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class OrangTuaController extends Controller
 {
+    /**
+     * Download master data orang tua dalam format Markdown (.md)
+     */
+    public function downloadMaster(MasterDataService $masterDataService): StreamedResponse
+    {
+        $content = $masterDataService->getMasterMarkdownContent('ortu');
+
+        return response()->streamDownload(
+            function () use ($content) {
+                echo $content;
+            },
+            'master_data_orang_tua.md',
+            ['Content-Type' => 'text/markdown; charset=UTF-8']
+        );
+    }
+
     /**
      * Tampilkan data master orang tua siswa
      */
@@ -26,13 +44,13 @@ class OrangTuaController extends Controller
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('fullname', 'like', "%{$search}%")
-                  ->orWhere('username', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%")
-                  ->orWhereHas('student', function ($sq) use ($search) {
-                      $sq->where('name', 'like', "%{$search}%")
-                         ->orWhere('nis', 'like', "%{$search}%")
-                         ->orWhere('kelas', 'like', "%{$search}%");
-                  });
+                    ->orWhere('username', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%")
+                    ->orWhereHas('student', function ($sq) use ($search) {
+                        $sq->where('name', 'like', "%{$search}%")
+                            ->orWhere('nis', 'like', "%{$search}%")
+                            ->orWhere('kelas', 'like', "%{$search}%");
+                    });
             });
         }
 

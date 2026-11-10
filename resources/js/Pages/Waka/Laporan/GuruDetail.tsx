@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import { AppLayout } from '@/Components/layout/AppLayout';
 import { Card, CardHeader, CardTitle, CardContent } from '@/Components/ui/card';
@@ -18,8 +18,11 @@ import {
   BookOpen, 
   Clock, 
   ExternalLink,
-  Users
+  Users,
+  Eye
 } from 'lucide-react';
+import { formatDateIndo } from '@/lib/utils';
+import { JournalDetailModal, JournalDetailData } from '@/Components/modals/JournalDetailModal';
 
 interface GuruInfo {
   id: number;
@@ -84,6 +87,8 @@ export default function GuruDetail({
   totalJournals,
   totalSchedules,
 }: GuruDetailProps) {
+  const [selectedJournal, setSelectedJournal] = useState<JournalDetailData | null>(null);
+
   const formatTime = (timeStr: string) => {
     return timeStr ? timeStr.substring(0, 5) : '';
   };
@@ -137,33 +142,26 @@ export default function GuruDetail({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-12">No</TableHead>
+                  <TableHead className="w-12 text-center">No</TableHead>
                   <TableHead>Tanggal</TableHead>
                   <TableHead>Mata Pelajaran & Kelas</TableHead>
-                  <TableHead>Materi / Topik KBM</TableHead>
-                  <TableHead>Presensi Siswa</TableHead>
-                  <TableHead>Dokumentasi Foto</TableHead>
+                  <TableHead className="text-center">Detail Jurnal & Presensi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {journals.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
                       Guru ini belum mengisi jurnal pembelajaran pada sistem.
                     </TableCell>
                   </TableRow>
                 ) : (
                   journals.map((j, idx) => {
-                    const hadir = j.attendances?.filter((a) => a.status === 'hadir').length || 0;
-                    const sakit = j.attendances?.filter((a) => a.status === 'sakit').length || 0;
-                    const izin = j.attendances?.filter((a) => a.status === 'izin').length || 0;
-                    const alpa = j.attendances?.filter((a) => a.status === 'alpa').length || 0;
-
                     return (
                       <TableRow key={j.id}>
-                        <TableCell className="text-xs text-muted-foreground">{idx + 1}</TableCell>
-                        <TableCell className="whitespace-nowrap text-xs font-semibold">
-                          {j.date}
+                        <TableCell className="text-xs text-center text-muted-foreground">{idx + 1}</TableCell>
+                        <TableCell className="whitespace-nowrap text-xs font-medium">
+                          {formatDateIndo(j.date)}
                         </TableCell>
                         <TableCell>
                           <div className="font-semibold text-sm">
@@ -173,44 +171,16 @@ export default function GuruDetail({
                             {j.schedule?.class_name} • {j.schedule?.day_of_week} ({formatTime(j.schedule?.start_time || '')} - {formatTime(j.schedule?.end_time || '')})
                           </div>
                         </TableCell>
-                        <TableCell className="max-w-xs text-xs">
-                          <p className="font-medium line-clamp-2">{j.topic}</p>
-                          {j.notes && (
-                            <p className="text-[11px] text-muted-foreground mt-0.5 italic">
-                              Catatan: {j.notes}
-                            </p>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap items-center gap-1 text-[11px]">
-                            <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-emerald-700 font-semibold border border-emerald-200">
-                              H: {hadir}
-                            </span>
-                            <span className="rounded bg-amber-50 px-1.5 py-0.5 text-amber-700 font-semibold border border-amber-200">
-                              S: {sakit}
-                            </span>
-                            <span className="rounded bg-sky-50 px-1.5 py-0.5 text-sky-700 font-semibold border border-sky-200">
-                              I: {izin}
-                            </span>
-                            <span className="rounded bg-rose-50 px-1.5 py-0.5 text-destructive font-semibold border border-rose-200">
-                              A: {alpa}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {j.documentation_path ? (
-                            <a
-                              href={`/storage/${j.documentation_path}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline font-medium"
-                            >
-                              <ExternalLink className="h-3 w-3" />
-                              <span>Lihat Foto</span>
-                            </a>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">-</span>
-                          )}
+                        <TableCell className="text-center">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSelectedJournal(j as unknown as JournalDetailData)}
+                            className="h-8 gap-1.5 text-xs font-semibold bg-slate-50 hover:bg-slate-100 border-slate-200 dark:bg-slate-900 dark:border-slate-800 text-foreground shadow-2xs"
+                          >
+                            <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                            Lihat Detail
+                          </Button>
                         </TableCell>
                       </TableRow>
                     );
@@ -274,6 +244,13 @@ export default function GuruDetail({
           </div>
         </Card>
       </div>
+
+      <JournalDetailModal
+        isOpen={!!selectedJournal}
+        onClose={() => setSelectedJournal(null)}
+        journal={selectedJournal}
+        canEdit={false}
+      />
     </AppLayout>
   );
 }

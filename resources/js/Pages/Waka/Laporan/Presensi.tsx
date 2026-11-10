@@ -128,7 +128,13 @@ export default function LaporanPresensi({
                                 <Input
                                     type="date"
                                     value={startDate}
-                                    onChange={(e) => setStartDate(e.target.value)}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setStartDate(val);
+                                        if (endDate && val && endDate < val) {
+                                            setEndDate(val);
+                                        }
+                                    }}
                                 />
                             </div>
 
@@ -137,7 +143,16 @@ export default function LaporanPresensi({
                                 <Input
                                     type="date"
                                     value={endDate}
-                                    onChange={(e) => setEndDate(e.target.value)}
+                                    min={startDate || undefined}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        const minAllowed = startDate;
+                                        if (minAllowed && val && val < minAllowed) {
+                                            setEndDate(minAllowed);
+                                        } else {
+                                            setEndDate(val);
+                                        }
+                                    }}
                                 />
                             </div>
 

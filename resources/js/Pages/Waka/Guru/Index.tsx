@@ -44,6 +44,9 @@ interface GuruItem {
     phone: string | null;
     is_active: boolean;
     must_change_credentials: boolean;
+    class_id?: number | null;
+    school_class?: { id: number; name: string };
+    homeroom_assignments?: { class_name: string }[];
 }
 
 interface PaginatedData<T> {
@@ -51,19 +54,25 @@ interface PaginatedData<T> {
     current_page: number;
     last_page: number;
     total: number;
+    from?: number;
+    to?: number;
     prev_page_url: string | null;
     next_page_url: string | null;
 }
 
 interface IndexProps {
     gurus: PaginatedData<GuruItem>;
+    totalTeachers: number;
+    classes?: { id: number; name: string; grade: string; jurusan: string }[];
     filters: {
         search?: string;
+        per_page?: string;
     };
 }
 
-export default function GuruIndex({ gurus, filters }: IndexProps) {
+export default function GuruIndex({ gurus, totalTeachers, classes = [], filters }: IndexProps) {
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
+    const [perPage, setPerPage] = useState(filters.per_page || '20');
 
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [editItem, setEditItem] = useState<GuruItem | null>(null);
@@ -95,12 +104,19 @@ export default function GuruIndex({ gurus, filters }: IndexProps) {
         fullname: '',
         email: '',
         phone: '',
+        role_id: '2',
+        class_id: '',
         is_active: true,
     });
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        router.get('/waka/guru', { search: searchQuery }, { preserveState: true });
+        router.get('/waka/guru', { search: searchQuery, per_page: perPage }, { preserveState: true });
+    };
+
+    const handlePerPageChange = (val: string) => {
+        setPerPage(val);
+        router.get('/waka/guru', { search: searchQuery, per_page: val }, { preserveState: true });
     };
 
     const submitCreate = (e: React.FormEvent) => {
@@ -130,6 +146,8 @@ export default function GuruIndex({ gurus, filters }: IndexProps) {
             fullname: guru.fullname,
             email: guru.email || '',
             phone: guru.phone || '',
+            role_id: guru.role_id ? guru.role_id.toString() : '2',
+            class_id: guru.class_id ? guru.class_id.toString() : (guru.school_class?.id ? guru.school_class.id.toString() : ''),
             is_active: guru.is_active,
         });
     };
@@ -178,7 +196,7 @@ export default function GuruIndex({ gurus, filters }: IndexProps) {
                                 className="gap-2"
                             >
                                 <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
-                                Import Excel / PDF
+                                Import Berkas
                             </Button>
                             <Button
                                 variant="outline"
@@ -244,18 +262,34 @@ export default function GuruIndex({ gurus, filters }: IndexProps) {
                                                 {guru.fullname}
                                             </TableCell>
                                             <TableCell>
-                                                <Badge variant="outline">
-                                                    {guru.role_id === 5 ? 'Wali Kelas' : 'Guru Pengampu'}
-                                                </Badge>
+                                                {guru.role_id === 5 ? (
+                                                    <Badge variant="default" className="text-xs bg-indigo-600 hover:bg-indigo-700">
+                                                        Wali Kelas {guru.school_class?.name || (guru.homeroom_assignments?.[0]?.class_name ? `• ${guru.homeroom_assignments[0].class_name}` : '')}
+                                                    </Badge>
+                                                ) : (
+                                                    <Badge variant="outline" className="text-xs">
+                                                        Guru Pengampu
+                                                    </Badge>
+                                                )}
                                             </TableCell>
                                             <TableCell className="text-xs text-muted-foreground">
                                                 <div>{guru.email || '-'}</div>
                                                 {guru.phone && <div>HP: {guru.phone}</div>}
                                             </TableCell>
                                             <TableCell className="text-center">
-                                                <Badge variant={guru.is_active ? 'secondary' : 'destructive'}>
-                                                    {guru.is_active ? 'Aktif' : 'Nonaktif'}
-                                                </Badge>
+                                                {!guru.is_active ? (
+                                                    <Badge variant="destructive" className="text-xs">
+                                                        Nonaktif
+                                                    </Badge>
+                                                ) : guru.must_change_credentials ? (
+                                                    <Badge variant="outline" className="bg-amber-100/70 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border-amber-300 text-xs">
+                                                        Perlu Aktivasi
+                                                    </Badge>
+                                                ) : (
+                                                    <Badge variant="secondary" className="bg-emerald-100/70 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-300 text-xs">
+                                                        Aktif
+                                                    </Badge>
+                                                )}
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex items-center justify-end gap-1">
@@ -293,6 +327,52 @@ export default function GuruIndex({ gurus, filters }: IndexProps) {
                                 )}
                             </TableBody>
                         </Table>
+                    </div>
+
+                    {/* Pagination Bar */}
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-border px-6 py-4">
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                            <span>
+                                Menampilkan {gurus.from || 0} - {gurus.to || 0} dari {gurus.total} tenaga pendidik
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                                <span>Tampilkan:</span>
+                                <select
+                                    value={perPage}
+                                    onChange={(e) => handlePerPageChange(e.target.value)}
+                                    className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                                >
+                                    <option value="20">20 / hal</option>
+                                    <option value="50">50 / hal</option>
+                                    <option value="100">100 / hal</option>
+                                    <option value="all">Semua ({gurus.total})</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {gurus.last_page > 1 && (
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={!gurus.prev_page_url}
+                                    onClick={() => gurus.prev_page_url && router.get(gurus.prev_page_url)}
+                                >
+                                    Sebelumnya
+                                </Button>
+                                <span className="text-xs text-muted-foreground px-2">
+                                    Halaman {gurus.current_page} dari {gurus.last_page}
+                                </span>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={!gurus.next_page_url}
+                                    onClick={() => gurus.next_page_url && router.get(gurus.next_page_url)}
+                                >
+                                    Selanjutnya
+                                </Button>
+                            </div>
+                        )}
                     </div>
                 </Card>
             </div>
@@ -413,6 +493,38 @@ export default function GuruIndex({ gurus, filters }: IndexProps) {
                                 onChange={(e) => editForm.setData('email', e.target.value)}
                             />
                         </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <Label htmlFor="edit_guru_role">Penugasan / Peran</Label>
+                                <select
+                                    id="edit_guru_role"
+                                    value={editForm.data.role_id}
+                                    onChange={(e) => editForm.setData('role_id', e.target.value)}
+                                    className="flex h-9 w-full rounded-md border border-input bg-card px-3 py-1 text-xs shadow-sm"
+                                >
+                                    <option value="2">Guru Pengampu</option>
+                                    <option value="5">Wali Kelas</option>
+                                </select>
+                            </div>
+                            {editForm.data.role_id === '5' && (
+                                <div className="space-y-1.5">
+                                    <Label htmlFor="edit_guru_class">Kelas Binaan</Label>
+                                    <select
+                                        id="edit_guru_class"
+                                        value={editForm.data.class_id}
+                                        onChange={(e) => editForm.setData('class_id', e.target.value)}
+                                        className="flex h-9 w-full rounded-md border border-input bg-card px-3 py-1 text-xs shadow-sm"
+                                    >
+                                        <option value="">-- Pilih Kelas --</option>
+                                        {classes?.map((c) => (
+                                            <option key={c.id} value={c.id.toString()}>
+                                                {c.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+                        </div>
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => setEditItem(null)}>
                                 Batal
@@ -471,38 +583,43 @@ export default function GuruIndex({ gurus, filters }: IndexProps) {
                 </DialogContent>
             </Dialog>
 
-            {/* Modal Import Excel / PDF Guru */}
+            {/* Modal Import Excel / PDF / Markdown Guru */}
             <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <FileSpreadsheet className="h-5 w-5 text-emerald-600" />
-                            Import Data Guru (Excel / PDF)
+                            Import Data Guru (Excel / PDF / Markdown)
                         </DialogTitle>
                     </DialogHeader>
                     <form onSubmit={submitImport} className="space-y-4">
                         <p className="text-xs text-muted-foreground">
-                            Unggah berkas Excel (.xlsx, .xls) atau dokumen PDF jadwal FET / daftar guru. Sistem otomatis membuat akun pendidik dan penugasan wali kelas.
+                            Unggah berkas Excel (.xlsx, .xls), dokumen PDF jadwal FET, atau berkas tabel Markdown (.md). Sistem otomatis menstandarkan username <code className="font-semibold text-foreground">guru.xx</code> dan mengatur status Perlu Aktivasi.
                         </p>
 
-                        <div className="flex items-center gap-2 text-xs">
+                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                            <a href="/waka/guru/master-md" className="inline-flex items-center gap-1 font-semibold text-primary hover:underline">
+                                <Download className="h-3.5 w-3.5" />
+                                Master Markdown (.md)
+                            </a>
+                            <span className="text-muted-foreground">&bull;</span>
                             <a href="/waka/guru/template" className="inline-flex items-center gap-1 text-primary hover:underline">
                                 <Download className="h-3.5 w-3.5" />
-                                Download Template Kosong
+                                Template Excel
                             </a>
                             <span className="text-muted-foreground">&bull;</span>
                             <a href="/waka/guru/contoh" className="inline-flex items-center gap-1 text-primary hover:underline">
                                 <Download className="h-3.5 w-3.5" />
-                                Download Contoh 5 Guru
+                                Contoh 5 Guru
                             </a>
                         </div>
 
                         <div className="space-y-1.5">
-                            <Label htmlFor="import-guru-file" className="text-xs">Pilih Berkas (.xlsx, .xls, .pdf)</Label>
+                            <Label htmlFor="import-guru-file" className="text-xs">Pilih Berkas (.xlsx, .xls, .pdf, .md)</Label>
                             <Input
                                 id="import-guru-file"
                                 type="file"
-                                accept=".xlsx,.xls,.pdf"
+                                accept=".xlsx,.xls,.pdf,.md,.txt"
                                 onChange={(e) => importForm.setData('file', e.target.files ? e.target.files[0] : null)}
                                 required
                             />

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import { AppLayout } from '@/Components/layout/AppLayout';
 import { Card, CardHeader, CardTitle, CardContent } from '@/Components/ui/card';
@@ -21,8 +21,11 @@ import {
     PlusCircle,
     ArrowRight,
     ClipboardList,
-    Printer
+    Printer,
+    Eye
 } from 'lucide-react';
+import { formatDateIndo } from '@/lib/utils';
+import { JournalDetailModal, JournalDetailData } from '@/Components/modals/JournalDetailModal';
 
 interface ScheduleItem {
     id: number;
@@ -78,6 +81,7 @@ export default function GuruDashboard({
     config,
 }: DashboardProps) {
     const user = auth?.user;
+    const [selectedDetailJournal, setSelectedDetailJournal] = useState<JournalDetailData | null>(null);
 
     const countStatus = (attendances: AttendanceItem[] = [], status: string) => {
         return attendances.filter(a => a.status === status).length;
@@ -260,66 +264,44 @@ export default function GuruDashboard({
                                         <TableRow>
                                             <TableHead>Tanggal</TableHead>
                                             <TableHead>Mata Pelajaran & Kelas</TableHead>
-                                            <TableHead>Topik / Materi KBM</TableHead>
-                                            <TableHead className="text-center">Rekap Presensi</TableHead>
+                                            <TableHead className="text-center">Detail Jurnal & Presensi</TableHead>
                                             <TableHead className="text-right">Tindakan</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {recentJournals.map((j) => {
-                                            const hadir = countStatus(j.attendances, 'hadir');
-                                            const sakit = countStatus(j.attendances, 'sakit');
-                                            const izin = countStatus(j.attendances, 'izin');
-                                            const alpa = countStatus(j.attendances, 'alpa');
-
-                                            return (
-                                                <TableRow key={j.id}>
-                                                    <TableCell className="text-xs font-mono">
-                                                        {j.date}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <span className="font-medium text-foreground block">
-                                                            {j.schedule?.subject || 'Mapel'}
-                                                        </span>
-                                                        <span className="text-xs text-muted-foreground">
-                                                            {j.schedule?.class_name || 'Kelas'}
-                                                        </span>
-                                                    </TableCell>
-                                                    <TableCell className="text-sm font-medium">
-                                                        {j.topic}
-                                                    </TableCell>
-                                                    <TableCell className="text-center">
-                                                        <div className="flex items-center justify-center gap-1.5 text-xs font-mono">
-                                                            <span className="bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded font-semibold" title="Hadir">
-                                                                H:{hadir}
-                                                            </span>
-                                                            <span className="bg-muted px-1.5 py-0.5 rounded" title="Sakit">
-                                                                S:{sakit}
-                                                            </span>
-                                                            <span className="bg-muted px-1.5 py-0.5 rounded" title="Izin">
-                                                                I:{izin}
-                                                            </span>
-                                                            {alpa > 0 ? (
-                                                                <span className="bg-destructive/15 text-destructive px-1.5 py-0.5 rounded font-bold" title="Alpa">
-                                                                    A:{alpa}
-                                                                </span>
-                                                            ) : (
-                                                                <span className="bg-muted px-1.5 py-0.5 rounded" title="Alpa">
-                                                                    A:0
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <Link href={`/guru/journal/${j.id}/edit`}>
-                                                            <Button size="sm" variant="ghost" className="h-8 text-xs">
-                                                                Edit
-                                                            </Button>
-                                                        </Link>
-                                                    </TableCell>
-                                                </TableRow>
-                                            );
-                                        })}
+                                        {recentJournals.map((j) => (
+                                            <TableRow key={j.id}>
+                                                <TableCell className="text-xs whitespace-nowrap font-medium">
+                                                    {formatDateIndo(j.date)}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <span className="font-medium text-foreground block">
+                                                        {j.schedule?.subject || 'Mapel'}
+                                                    </span>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {j.schedule?.class_name || 'Kelas'}
+                                                    </span>
+                                                </TableCell>
+                                                <TableCell className="text-center">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => setSelectedDetailJournal(j as unknown as JournalDetailData)}
+                                                        className="h-8 gap-1.5 text-xs font-semibold bg-slate-50 hover:bg-slate-100 border-slate-200 dark:bg-slate-900 dark:border-slate-800 text-foreground shadow-2xs"
+                                                    >
+                                                        <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                                                        Lihat Detail
+                                                    </Button>
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <Link href={`/guru/journal/${j.id}/edit`}>
+                                                        <Button size="sm" variant="ghost" className="h-8 text-xs">
+                                                            Edit
+                                                        </Button>
+                                                    </Link>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
                                     </TableBody>
                                 </Table>
                             </div>
@@ -327,6 +309,13 @@ export default function GuruDashboard({
                     </CardContent>
                 </Card>
             </div>
+
+            <JournalDetailModal
+                isOpen={!!selectedDetailJournal}
+                onClose={() => setSelectedDetailJournal(null)}
+                journal={selectedDetailJournal}
+                canEdit={true}
+            />
         </AppLayout>
     );
 }

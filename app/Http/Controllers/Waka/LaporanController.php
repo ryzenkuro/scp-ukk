@@ -11,6 +11,7 @@ use App\Models\SchoolClass;
 use App\Models\Siswa;
 use App\Models\SystemConfiguration;
 use App\Models\User;
+use App\Services\AttendanceSyncService;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,6 +25,8 @@ class LaporanController extends Controller
      */
     public function presensi(Request $request): Response
     {
+        AttendanceSyncService::syncAllApprovedLeaves();
+
         $config = SystemConfiguration::current();
 
         $kelasList = SchoolClass::orderBy('name')->pluck('name');
@@ -34,6 +37,9 @@ class LaporanController extends Controller
         $selectedKelas = $request->input('kelas', $kelasList->first() ?? 'X RPL 1');
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
+        if ($startDate && $endDate && $endDate < $startDate) {
+            $endDate = $startDate;
+        }
 
         // Ambil seluruh siswa aktif di kelas yang dipilih
         $students = Siswa::where('kelas', $selectedKelas)
@@ -139,8 +145,8 @@ class LaporanController extends Controller
         if ($search) {
             $query->whereHas('student', function ($sq) use ($search) {
                 $sq->where('name', 'like', "%{$search}%")
-                   ->orWhere('nis', 'like', "%{$search}%")
-                   ->orWhere('kelas', 'like', "%{$search}%");
+                    ->orWhere('nis', 'like', "%{$search}%")
+                    ->orWhere('kelas', 'like', "%{$search}%");
             });
         }
 
@@ -172,6 +178,8 @@ class LaporanController extends Controller
             'verified_at' => now(),
             'rejection_reason' => $validated['rejection_reason'] ?? null,
         ]);
+
+        AttendanceSyncService::syncLeaveRequest($leave);
 
         $statusText = $validated['status'] === 'approved' ? 'disetujui' : 'ditolak';
 
@@ -263,7 +271,7 @@ class LaporanController extends Controller
     {
         abort_unless(in_array((int) $guru->role_id, [2, 5], true), 404);
 
-        $journals = Journal::with(['schedule.schoolClass', 'attendances'])
+        $journals = Journal::with(['schedule.schoolClass', 'schedule.room', 'attendances.student'])
             ->where('teacher_id', $guru->id)
             ->orderByDesc('date')
             ->orderByDesc('id')
@@ -290,4 +298,3 @@ class LaporanController extends Controller
         ]);
     }
 }
-

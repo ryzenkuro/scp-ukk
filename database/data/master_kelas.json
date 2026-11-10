@@ -1,0 +1,338 @@
+[
+    {
+        "name": "X RPL 1",
+        "grade": "X",
+        "jurusan": "RPL",
+        "angkatan": 2026,
+        "total_siswa": 36
+    },
+    {
+        "name": "X RPL 2",
+        "grade": "X",
+        "jurusan": "RPL",
+        "angkatan": 2026,
+        "total_siswa": 36
+    },
+    {
+        "name": "X TKJ 1",
+        "grade": "X",
+        "jurusan": "TKJ",
+        "angkatan": 2026,
+        "total_siswa": 36
+    },
+    {
+        "name": "X TKJ 2",
+        "grade": "X",
+        "jurusan": "TKJ",
+        "angkatan": 2026,
+        "total_siswa": 36
+    },
+    {
+        "name": "X DKV 1",
+        "grade": "X",
+        "jurusan": "DKV",
+        "angkatan": 2026,
+        "total_siswa": 36
+    },
+    {
+        "name": "X DKV 2",
+        "grade": "X",
+        "jurusan": "DKV",
+        "angkatan": 2026,
+        "total_siswa": 36
+    },
+    {
+        "name": "X AK 1",
+        "grade": "X",
+        "jurusan": "AKL",
+        "angkatan": 2026,
+        "total_siswa": 36
+    },
+    {
+        "name": "X AK 2",
+        "grade": "X",
+        "jurusan": "AKL",
+        "angkatan": 2026,
+        "total_siswa": 36
+    },
+    {
+        "name": "X AK 3",
+        "grade": "X",
+        "jurusan": "AKL",
+        "angkatan": 2026,
+        "total_siswa": 36
+    },
+    {
+        "name": "X LPS 1",
+        "grade": "X",
+        "jurusan": "LPS",
+        "angkatan": 2026,
+        "total_siswa": 36
+    },
+    {
+        "name": "X LPS 2",
+        "grade": "X",
+        "jurusan": "LPS",
+        "angkatan": 2026,
+        "total_siswa": 35
+    },
+    {
+        "name": "X MP 1",
+        "grade": "X",
+        "jurusan": "MP",
+        "angkatan": 2026,
+        "total_siswa": 36
+    },
+    {
+        "name": "X MP 2",
+        "grade": "X",
+        "jurusan": "MP",
+        "angkatan": 2026,
+        "total_siswa": 36
+    },
+    {
+        "name": "X BR 1",
+        "grade": "X",
+        "jurusan": "BR",
+        "angkatan": 2026,
+        "total_siswa": 36
+    },
+    {
+        "name": "X BR 2",
+        "grade": "X",
+        "jurusan": "BR",
+        "angkatan": 2026,
+        "total_siswa": 36
+    },
+    {
+        "name": "X BD",
+        "grade": "X",
+        "jurusan": "BD",
+        "angkatan": 2026,
+        "total_siswa": 36
+    },
+    {
+        "name": "XI RPL 1",
+        "grade": "XI",
+        "jurusan": "RPL",
+        "angkatan": 2025,
+        "total_siswa": 35
+    },
+    {
+        "name": "XI RPL 2",
+        "grade": "XI",
+        "jurusan": "RPL",
+        "angkatan": 2025,
+        "total_siswa": 36
+    },
+    {
+        "name": "XI TKJ 1",
+        "grade": "XI",
+        "jurusan": "TKJ",
+        "angkatan": 2025,
+        "total_siswa": 35
+    },
+    {
+        "name": "XI TKJ 2",
+        "grade": "XI",
+        "jurusan": "TKJ",
+        "angkatan": 2025,
+        "total_siswa": 36
+    },
+    {
+        "name": "XI DKV 1",
+        "grade": "XI",
+        "jurusan": "DKV",
+        "angkatan": 2025,
+        "total_siswa": 36
+    },
+    {
+        "name": "XI DKV 2",
+        "grade": "XI",
+        "jurusan": "DKV",
+        "angkatan": 2025,
+        "total_siswa": 36
+    },
+    {
+        "name": "XI AK 1",
+        "grade": "XI",
+        "jurusan": "AKL",
+        "angkatan": 2025,
+        "total_siswa": 36
+    },
+    {
+        "name": "XI AK 2",
+        "grade": "XI",
+        "jurusan": "AKL",
+        "angkatan": 2025,
+        "total_siswa": 35
+    },
+    {
+        "name": "XI AK 3",
+        "grade": "XI",
+        "jurusan": "AKL",
+        "angkatan": 2025,
+        "total_siswa": 36
+    },
+    {
+        "name": "XI LPS 1",
+        "grade": "XI",
+        "jurusan": "LPS",
+        "angkatan": 2025,
+        "total_siswa": 36
+    },
+    {
+        "name": "XI LPS 2",
+        "grade": "XI",
+        "jurusan": "LPS",
+        "angkatan": 2025,
+        "total_siswa": 36
+    },
+    {
+        "name": "XI MP 1",
+        "grade": "XI",
+        "jurusan": "MP",
+        "angkatan": 2025,
+        "total_siswa": 36
+    },
+    {
+        "name": "XI MP 2",
+        "grade": "XI",
+        "jurusan": "MP",
+        "angkatan": 2025,
+        "total_siswa": 36
+    },
+    {
+        "name": "XI BR 1",
+        "grade": "XI",
+        "jurusan": "BR",
+        "angkatan": 2025,
+        "total_siswa": 36
+    },
+    {
+        "name": "XI BR 2",
+        "grade": "XI",
+        "jurusan": "BR",
+        "angkatan": 2025,
+        "total_siswa": 36
+    },
+    {
+        "name": "XI BD",
+        "grade": "XI",
+        "jurusan": "BD",
+        "angkatan": 2025,
+        "total_siswa": 36
+    },
+    {
+        "name": "XII RPL 1",
+        "grade": "XII",
+        "jurusan": "RPL",
+        "angkatan": 2024,
+        "total_siswa": 33
+    },
+    {
+        "name": "XII RPL 2",
+        "grade": "XII",
+        "jurusan": "RPL",
+        "angkatan": 2024,
+        "total_siswa": 35
+    },
+    {
+        "name": "XII TKJ 1",
+        "grade": "XII",
+        "jurusan": "TKJ",
+        "angkatan": 2024,
+        "total_siswa": 36
+    },
+    {
+        "name": "XII TKJ 2",
+        "grade": "XII",
+        "jurusan": "TKJ",
+        "angkatan": 2024,
+        "total_siswa": 33
+    },
+    {
+        "name": "XII DKV 1",
+        "grade": "XII",
+        "jurusan": "DKV",
+        "angkatan": 2024,
+        "total_siswa": 36
+    },
+    {
+        "name": "XII DKV 2",
+        "grade": "XII",
+        "jurusan": "DKV",
+        "angkatan": 2024,
+        "total_siswa": 36
+    },
+    {
+        "name": "XII AK 1",
+        "grade": "XII",
+        "jurusan": "AKL",
+        "angkatan": 2024,
+        "total_siswa": 36
+    },
+    {
+        "name": "XII AK 2",
+        "grade": "XII",
+        "jurusan": "AKL",
+        "angkatan": 2024,
+        "total_siswa": 36
+    },
+    {
+        "name": "XII AK 3",
+        "grade": "XII",
+        "jurusan": "AKL",
+        "angkatan": 2024,
+        "total_siswa": 36
+    },
+    {
+        "name": "XII AK 4",
+        "grade": "XII",
+        "jurusan": "AKL",
+        "angkatan": 2024,
+        "total_siswa": 36
+    },
+    {
+        "name": "XII LPS",
+        "grade": "XII",
+        "jurusan": "LPS",
+        "angkatan": 2024,
+        "total_siswa": 36
+    },
+    {
+        "name": "XII MP 1",
+        "grade": "XII",
+        "jurusan": "MP",
+        "angkatan": 2024,
+        "total_siswa": 35
+    },
+    {
+        "name": "XII MP 2",
+        "grade": "XII",
+        "jurusan": "MP",
+        "angkatan": 2024,
+        "total_siswa": 36
+    },
+    {
+        "name": "XII BR 1",
+        "grade": "XII",
+        "jurusan": "BR",
+        "angkatan": 2024,
+        "total_siswa": 33
+    },
+    {
+        "name": "XII BR 2",
+        "grade": "XII",
+        "jurusan": "BR",
+        "angkatan": 2024,
+        "total_siswa": 34
+    },
+    {
+        "name": "XII BD",
+        "grade": "XII",
+        "jurusan": "BD",
+        "angkatan": 2024,
+        "total_siswa": 36
+    }
+]

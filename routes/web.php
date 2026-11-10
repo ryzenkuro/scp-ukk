@@ -3,29 +3,29 @@
 use App\Http\Controllers\Auth\AccountActivationController;
 use App\Http\Controllers\Guru\DashboardController as GuruDashboardController;
 use App\Http\Controllers\Guru\JournalController;
+use App\Http\Controllers\Kesiswaan\KesiswaanPortalController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\Siswa\DashboardController as SiswaDashboardController;
-use App\Http\Controllers\Waka\DashboardController as WakaDashboardController;
-use App\Http\Controllers\Waka\TimeSlotController;
-use App\Http\Controllers\Waka\SiswaController;
-use App\Http\Controllers\Waka\AlumniController;
-use App\Http\Controllers\Waka\GuruController;
-use App\Http\Controllers\Waka\OrangTuaController;
+use App\Http\Controllers\SharedJadwalSekolahController;
+use App\Http\Controllers\Siswa\PortalController as SiswaPortalController;
 use App\Http\Controllers\Waka\AkunRoleController;
+use App\Http\Controllers\Waka\AlumniController;
+use App\Http\Controllers\Waka\DashboardController as WakaDashboardController;
+use App\Http\Controllers\Waka\GuruController;
 use App\Http\Controllers\Waka\JadwalController;
 use App\Http\Controllers\Waka\LaporanController;
-use App\Http\Controllers\Siswa\PortalController as SiswaPortalController;
-use App\Http\Controllers\Kesiswaan\KesiswaanPortalController;
+use App\Http\Controllers\Waka\OrangTuaController;
+use App\Http\Controllers\Waka\SiswaController;
+use App\Http\Controllers\Waka\TimeSlotController;
 use App\Http\Controllers\WaliKelas\WaliKelasPortalController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 // Landing page: langsung arahkan ke Login jika belum masuk, atau ke Dashboard jika sudah login
 Route::get('/', function () {
     if (Auth::check()) {
         return redirect()->route('dashboard');
     }
+
     return redirect()->route('login');
 });
 
@@ -59,8 +59,11 @@ Route::middleware(['auth', 'role:waka'])->prefix('waka')->name('waka.')->group(f
 
     // Master Jam Pembelajaran Sekolah
     Route::get('/jam-pelajaran/template', [TimeSlotController::class, 'template'])->name('jam-pelajaran.template');
-    Route::get('/jam-pelajaran/contoh', [TimeSlotController::class, 'contoh'])->name('jam-pelajaran.contoh');
+    Route::get('/jam-pelajaran/contoh', [TimeSlotController::class, 'contoh'])->name('jam-pelajaran.example');
     Route::post('/jam-pelajaran/import', [TimeSlotController::class, 'import'])->name('jam-pelajaran.import');
+    Route::post('/jam-pelajaran/switch-cycle', [TimeSlotController::class, 'switchCycle'])->name('jam-pelajaran.switch-cycle');
+    Route::post('/jam-pelajaran/toggle-ceremony', [TimeSlotController::class, 'toggleCeremony'])->name('jam-pelajaran.toggle-ceremony');
+    Route::post('/jam-pelajaran/sync-jadwal', [TimeSlotController::class, 'syncFromSchedule'])->name('jam-pelajaran.sync-jadwal');
     Route::delete('/jam-pelajaran/reset-semua', [TimeSlotController::class, 'resetAll'])->name('jam-pelajaran.reset-all');
     Route::get('/jam-pelajaran', [TimeSlotController::class, 'index'])->name('jam-pelajaran.index');
     Route::post('/jam-pelajaran', [TimeSlotController::class, 'store'])->name('jam-pelajaran.store');
@@ -72,17 +75,20 @@ Route::middleware(['auth', 'role:waka'])->prefix('waka')->name('waka.')->group(f
     Route::get('/siswa-index', [SiswaController::class, 'index'])->name('siswa.index');
     Route::get('/siswa/template', [SiswaController::class, 'template'])->name('siswa.template');
     Route::get('/siswa/contoh', [SiswaController::class, 'contoh'])->name('siswa.example');
+    Route::get('/siswa/master-md', [SiswaController::class, 'downloadMaster'])->name('siswa.master-md');
     Route::post('/siswa/import', [SiswaController::class, 'import'])->name('siswa.import');
     Route::delete('/siswa/hapus-per-kelas', [SiswaController::class, 'hapusPerKelas'])->name('siswa.destroy_class');
     Route::post('/siswa', [SiswaController::class, 'store'])->name('siswa.store');
     Route::put('/siswa/{siswa}', [SiswaController::class, 'update'])->name('siswa.update');
     Route::delete('/siswa/{siswa}', [SiswaController::class, 'destroy'])->name('siswa.destroy');
     Route::post('/siswa/naik-kelas', [SiswaController::class, 'naikKelas'])->name('siswa.naik-kelas');
+    Route::post('/siswa/assign-homeroom', [SiswaController::class, 'assignHomeroom'])->name('siswa.assign-homeroom');
 
     // Aliases for data-siswa
     Route::get('/data-siswa', [SiswaController::class, 'index']);
     Route::get('/data-siswa/template', [SiswaController::class, 'template']);
     Route::get('/data-siswa/contoh', [SiswaController::class, 'contoh']);
+    Route::get('/data-siswa/master-md', [SiswaController::class, 'downloadMaster']);
     Route::post('/data-siswa/import', [SiswaController::class, 'import']);
     Route::delete('/data-siswa/hapus-per-kelas', [SiswaController::class, 'hapusPerKelas']);
 
@@ -95,6 +101,7 @@ Route::middleware(['auth', 'role:waka'])->prefix('waka')->name('waka.')->group(f
     Route::get('/guru-index', [GuruController::class, 'index'])->name('guru.index');
     Route::get('/guru/template', [GuruController::class, 'template'])->name('guru.template');
     Route::get('/guru/contoh', [GuruController::class, 'contoh'])->name('guru.example');
+    Route::get('/guru/master-md', [GuruController::class, 'downloadMaster'])->name('guru.master-md');
     Route::post('/guru/import', [GuruController::class, 'import'])->name('guru.import');
     Route::post('/guru', [GuruController::class, 'store'])->name('guru.store');
     Route::put('/guru/{guru}', [GuruController::class, 'update'])->name('guru.update');
@@ -106,10 +113,12 @@ Route::middleware(['auth', 'role:waka'])->prefix('waka')->name('waka.')->group(f
     Route::get('/data-guru', [GuruController::class, 'index']);
     Route::get('/data-guru/template', [GuruController::class, 'template']);
     Route::get('/data-guru/contoh', [GuruController::class, 'contoh']);
+    Route::get('/data-guru/master-md', [GuruController::class, 'downloadMaster']);
     Route::post('/data-guru/import', [GuruController::class, 'import']);
 
     // Data Master: Orang Tua Murid
     Route::get('/orang-tua', [OrangTuaController::class, 'index'])->name('orang-tua.index');
+    Route::get('/orang-tua/master-md', [OrangTuaController::class, 'downloadMaster'])->name('orang-tua.master-md');
     Route::put('/orang-tua/{orangTua}', [OrangTuaController::class, 'update'])->name('orang-tua.update');
     Route::post('/orang-tua/{orangTua}/reset-password', [OrangTuaController::class, 'resetPassword'])->name('orang-tua.reset-password');
 
@@ -118,6 +127,7 @@ Route::middleware(['auth', 'role:waka'])->prefix('waka')->name('waka.')->group(f
     Route::get('/jadwal-index', [JadwalController::class, 'index'])->name('jadwal.index');
     Route::get('/jadwal/template', [JadwalController::class, 'template'])->name('jadwal.template');
     Route::get('/jadwal/contoh', [JadwalController::class, 'contoh'])->name('jadwal.example');
+    Route::get('/jadwal/master-md', [JadwalController::class, 'downloadMaster'])->name('jadwal.master-md');
     Route::post('/jadwal/import', [JadwalController::class, 'import'])->name('jadwal.import');
     Route::get('/jadwal/export-pdf', [JadwalController::class, 'exportPdf'])->name('jadwal.pdf');
     Route::post('/jadwal', [JadwalController::class, 'store'])->name('jadwal.store');
@@ -128,6 +138,7 @@ Route::middleware(['auth', 'role:waka'])->prefix('waka')->name('waka.')->group(f
     // Kelola Akun & Role
     Route::get('/akun', [AkunRoleController::class, 'index'])->name('akun.index');
     Route::post('/akun', [AkunRoleController::class, 'store'])->name('akun.store');
+    Route::put('/akun/{user}', [AkunRoleController::class, 'update'])->name('akun.update');
     Route::post('/akun/ganti-waka', [AkunRoleController::class, 'gantiWaka'])->name('akun.ganti-waka');
     Route::delete('/akun/{user}', [AkunRoleController::class, 'destroy'])->name('akun.destroy');
     Route::post('/akun/{user}/toggle-active', [AkunRoleController::class, 'toggleActive'])->name('akun.toggle-active');
@@ -144,6 +155,7 @@ Route::middleware(['auth', 'role:waka'])->prefix('waka')->name('waka.')->group(f
 // Portal Guru
 Route::middleware(['auth', 'role:guru,wali_kelas,guru_bk,kesiswaan'])->prefix('guru')->name('guru.')->group(function () {
     Route::get('/dashboard', [GuruDashboardController::class, 'index'])->name('dashboard');
+    Route::get('/jadwal', [GuruDashboardController::class, 'jadwal'])->name('jadwal');
     Route::get('/jadwal/export-pdf', [GuruDashboardController::class, 'exportPdf'])->name('jadwal.pdf');
 
     // Operasional KBM: Jurnal Mengajar & Presensi Siswa (CRUD Penuh)
@@ -181,10 +193,17 @@ Route::middleware(['auth', 'role:guru_bk,kesiswaan'])->prefix('kesiswaan')->name
 // Portal Wali Kelas
 Route::middleware(['auth', 'role:wali_kelas'])->prefix('wali-kelas')->name('wali-kelas.')->group(function () {
     Route::get('/dashboard', [WaliKelasPortalController::class, 'dashboard'])->name('dashboard');
+    Route::get('/jadwal', [WaliKelasPortalController::class, 'jadwal'])->name('jadwal');
     Route::get('/siswa', [WaliKelasPortalController::class, 'siswa'])->name('siswa');
     Route::get('/izin', [WaliKelasPortalController::class, 'izin'])->name('izin');
     Route::post('/izin/{leave}/verify', [WaliKelasPortalController::class, 'verifyIzin'])->name('izin.verify');
     Route::get('/presensi', [WaliKelasPortalController::class, 'presensi'])->name('presensi');
+});
+
+// Jadwal Sekolah Terpadu (Format Siswa untuk Seluruh Tenaga Pendidik & Waka)
+Route::middleware(['auth', 'role:waka,guru,wali_kelas,guru_bk,kesiswaan'])->group(function () {
+    Route::get('/jadwal-sekolah', [SharedJadwalSekolahController::class, 'index'])->name('jadwal-sekolah');
+    Route::get('/bk/jadwal', [SharedJadwalSekolahController::class, 'index'])->name('bk.jadwal');
 });
 
 // Halaman Profil Pengguna

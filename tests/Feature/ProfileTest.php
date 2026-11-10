@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -95,5 +96,51 @@ class ProfileTest extends TestCase
             ->assertRedirect('/profile');
 
         $this->assertNotNull($user->fresh());
+    }
+
+    public function test_profile_information_can_update_phone_number(): void
+    {
+        $user = User::factory()->create([
+            'phone' => '081234567890',
+        ]);
+
+        $response = $this
+            ->actingAs($user)
+            ->patch('/profile', [
+                'fullname' => 'Updated Name',
+                'email' => $user->email,
+                'phone' => '089876543210',
+            ]);
+
+        $response
+            ->assertSessionHasNoErrors()
+            ->assertRedirect('/profile');
+
+        $user->refresh();
+        $this->assertSame('089876543210', $user->phone);
+        $this->assertSame('Updated Name', $user->fullname);
+    }
+
+    public function test_different_roles_can_view_profile_page(): void
+    {
+        $guruRole = Role::firstOrCreate(['name' => 'guru'], ['label' => 'Guru Pengampu']);
+        $siswaRole = Role::firstOrCreate(['name' => 'siswa'], ['label' => 'Siswa / Murid']);
+
+        $guru = User::factory()->create([
+            'role_id' => $guruRole->id,
+            'nip' => '198001012005011001',
+        ]);
+
+        $siswa = User::factory()->create([
+            'role_id' => $siswaRole->id,
+        ]);
+
+        $this->actingAs($guru)
+            ->get('/profile')
+            ->assertOk();
+
+        $this->actingAs($siswa)
+            ->get('/profile')
+            ->assertOk();
     }
 }

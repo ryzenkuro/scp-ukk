@@ -28,7 +28,8 @@ import {
     KeyRound,
     CheckCircle2,
     Clock,
-    ShieldAlert
+    ShieldAlert,
+    Download
 } from 'lucide-react';
 
 interface OrangTuaItem {
@@ -158,12 +159,14 @@ export default function OrangTuaIndex({ orangTuas, filters, stats }: IndexProps)
                 {/* Filter & Panduan Pola Akun */}
                 <Card>
                     <CardHeader className="pb-4">
-                        <CardTitle className="text-xl font-bold tracking-tight">
-                            Pengelolaan Akun Orang Tua Murid
-                        </CardTitle>
-                        <p className="text-sm text-muted-foreground mt-0.5">
-                            Akun orang tua dibuat terpisah secara default dengan username <code className="font-semibold text-foreground">ortu_[NIS]</code> dan kata sandi awal <code className="font-semibold text-foreground">smkn1bantul2026</code>. Orang tua dapat melakukan aktivasi mandiri saat login pertama kali.
-                        </p>
+                        <div>
+                            <CardTitle className="text-xl font-bold tracking-tight">
+                                Pengelolaan Akun Orang Tua Murid
+                            </CardTitle>
+                            <p className="text-sm text-muted-foreground mt-0.5">
+                                Akun orang tua dibuat terpisah secara default dengan username <code className="font-semibold text-foreground">ortu_[NIS]</code> dan kata sandi awal <code className="font-semibold text-foreground">smkn1bantul2026</code>. Orang tua dapat melakukan aktivasi mandiri saat login pertama kali.
+                            </p>
+                        </div>
                     </CardHeader>
 
                     <CardContent className="pt-0">
