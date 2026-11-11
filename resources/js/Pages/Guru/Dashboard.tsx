@@ -38,6 +38,11 @@ interface ScheduleItem {
     end_time: string;
     start_slot?: { name: string };
     end_slot?: { name: string };
+    is_filled_today?: boolean;
+    journal_id?: number | null;
+    time_status?: 'upcoming' | 'ongoing' | 'grace_period' | 'missed' | 'filled';
+    remaining_grace_minutes?: number | null;
+    can_edit?: boolean;
 }
 
 interface AttendanceItem {
@@ -49,6 +54,7 @@ interface JournalItem {
     date: string;
     topic: string;
     notes: string | null;
+    can_edit?: boolean;
     schedule?: {
         subject: string;
         class_name: string;
@@ -59,6 +65,7 @@ interface JournalItem {
 interface DashboardProps {
     auth: any;
     todaySchedules: ScheduleItem[];
+    activeSchedule?: ScheduleItem | null;
     recentJournals: JournalItem[];
     currentDay: string;
     stats: {
@@ -75,6 +82,7 @@ interface DashboardProps {
 export default function GuruDashboard({
     auth,
     todaySchedules = [],
+    activeSchedule = null,
     recentJournals = [],
     currentDay = 'Senin',
     stats,
@@ -171,12 +179,19 @@ export default function GuruDashboard({
                                 KBM yang aktif sesuai Siklus Putaran {config?.active_cycle ?? 1}.
                             </p>
                         </div>
-                        <Link href="/guru/journal/create">
-                            <Button size="sm" className="gap-1.5 text-xs">
-                                <PlusCircle className="h-4 w-4" />
+                        {activeSchedule ? (
+                            <Link href={`/guru/journal/create?schedule_id=${activeSchedule.id}`}>
+                                <Button size="sm" className="gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm">
+                                    <PlusCircle className="h-4 w-4" />
+                                    Isi Jurnal KBM
+                                </Button>
+                            </Link>
+                        ) : (
+                            <Button size="sm" disabled className="gap-1.5 text-xs opacity-60 cursor-not-allowed bg-muted text-muted-foreground border border-border" title="Menunggu jadwal KBM aktif berikutnya">
+                                <Clock className="h-4 w-4" />
                                 Isi Jurnal KBM
                             </Button>
-                        </Link>
+                        )}
                     </CardHeader>
                     <CardContent className="pt-0">
                         {todaySchedules.length === 0 ? (
@@ -196,37 +211,89 @@ export default function GuruDashboard({
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {todaySchedules.map((schedule) => (
-                                            <TableRow key={schedule.id}>
-                                                <TableCell className="font-semibold text-xs">
-                                                    {schedule.start_time.substring(0, 5)} - {schedule.end_time.substring(0, 5)}
-                                                    {schedule.start_slot && schedule.end_slot && (
-                                                        <span className="block text-[11px] font-normal text-muted-foreground">
-                                                            {schedule.start_slot.name} s.d. {schedule.end_slot.name}
+                                        {todaySchedules.map((schedule) => {
+                                            const isOngoing = schedule.time_status === 'ongoing';
+                                            const isGrace = schedule.time_status === 'grace_period';
+                                            const isFilled = schedule.time_status === 'filled';
+                                            const isMissed = schedule.time_status === 'missed';
+                                            const isUpcoming = schedule.time_status === 'upcoming';
+
+                                            return (
+                                                <TableRow
+                                                    key={schedule.id}
+                                                    className={isOngoing ? 'bg-emerald-50/70 dark:bg-emerald-950/30' : ''}
+                                                >
+                                                    <TableCell className="font-semibold text-xs whitespace-nowrap">
+                                                        <span className="font-mono">{schedule.start_time.substring(0, 5)} - {schedule.end_time.substring(0, 5)}</span>
+                                                        {schedule.start_slot && schedule.end_slot && (
+                                                            <span className="block text-[11px] font-normal text-muted-foreground">
+                                                                {schedule.start_slot.name} s.d. {schedule.end_slot.name}
+                                                            </span>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <span className="font-medium text-foreground block">
+                                                            {schedule.subject}
                                                         </span>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="font-medium text-foreground">
-                                                    {schedule.subject}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge variant="secondary">
-                                                        {schedule.class_name}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell className="text-xs text-muted-foreground">
-                                                    {schedule.room_name || '-'}
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    <Link href={`/guru/journal/create?schedule_id=${schedule.id}`}>
-                                                        <Button size="sm" variant="outline" className="gap-1.5 text-xs">
-                                                            <ClipboardList className="h-3.5 w-3.5 text-emerald-600" />
-                                                            Isi Jurnal
-                                                        </Button>
-                                                    </Link>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
+                                                        <div className="flex items-center gap-1.5 mt-0.5">
+                                                            <span className="text-[11px] text-muted-foreground font-mono">
+                                                                Putaran {schedule.cycle_number}
+                                                            </span>
+                                                            {isOngoing && (
+                                                                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
+                                                                    (Berlangsung)
+                                                                </span>
+                                                            )}
+                                                            {isGrace && (
+                                                                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                                                                    Toleransi (Sisa {schedule.remaining_grace_minutes} mnt)
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Badge variant="secondary">
+                                                            {schedule.class_name}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell className="text-xs text-muted-foreground">
+                                                        {schedule.room_name || '-'}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        {isFilled ? (
+                                                            <div className="flex items-center justify-end gap-1.5">
+                                                                <Badge variant="outline" className="text-emerald-700 border-emerald-300 bg-emerald-50 dark:bg-emerald-950 dark:text-emerald-300 text-[11px]">
+                                                                    <CheckCircle2 className="h-3 w-3 mr-1 text-emerald-600" />
+                                                                    Sudah Terisi
+                                                                </Badge>
+                                                                {schedule.journal_id && schedule.can_edit && (
+                                                                    <Link href={`/guru/journal/${schedule.journal_id}/edit`}>
+                                                                        <Button size="sm" variant="ghost" className="h-7 text-xs px-2 text-primary font-semibold">
+                                                                            Edit
+                                                                        </Button>
+                                                                    </Link>
+                                                                )}
+                                                            </div>
+                                                        ) : isOngoing || isGrace ? (
+                                                            <Link href={`/guru/journal/create?schedule_id=${schedule.id}`}>
+                                                                <Button size="sm" className="gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm">
+                                                                    <ClipboardList className="h-3.5 w-3.5" />
+                                                                    Isi Jurnal
+                                                                </Button>
+                                                            </Link>
+                                                        ) : isMissed ? (
+                                                            <span className="text-xs text-destructive font-medium italic">
+                                                                Batas Waktu Usai
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-xs text-muted-foreground italic">
+                                                                Mendatang
+                                                            </span>
+                                                        )}
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
                                     </TableBody>
                                 </Table>
                             </div>
@@ -294,11 +361,17 @@ export default function GuruDashboard({
                                                     </Button>
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    <Link href={`/guru/journal/${j.id}/edit`}>
-                                                        <Button size="sm" variant="ghost" className="h-8 text-xs">
-                                                            Edit
-                                                        </Button>
-                                                    </Link>
+                                                    {j.can_edit ? (
+                                                        <Link href={`/guru/journal/${j.id}/edit`}>
+                                                            <Button size="sm" variant="ghost" className="h-8 text-xs text-primary font-semibold">
+                                                                Edit
+                                                            </Button>
+                                                        </Link>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground italic px-2">
+                                                            Terkunci
+                                                        </span>
+                                                    )}
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -314,7 +387,7 @@ export default function GuruDashboard({
                 isOpen={!!selectedDetailJournal}
                 onClose={() => setSelectedDetailJournal(null)}
                 journal={selectedDetailJournal}
-                canEdit={true}
+                canEdit={selectedDetailJournal?.can_edit ?? false}
             />
         </AppLayout>
     );

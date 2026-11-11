@@ -41,19 +41,24 @@ class DatabaseSeeder extends Seeder
         $room2 = Room::firstOrCreate(['name' => 'Lab RPL 2']);
         $room3 = Room::firstOrCreate(['name' => 'Ruang Teori 1']);
 
-        // 4. Master Jam Pembelajaran (TimeSlots)
+        // 4. Master Jam Pembelajaran Resmi (12 Sesi: 10 Jam KBM + 2 Istirahat: 07:15 - 15:30)
         $timeSlots = [
-            ['name' => 'Jam Ke-1', 'start_time' => '07:00:00', 'end_time' => '07:45:00', 'is_break' => false, 'order' => 1],
-            ['name' => 'Jam Ke-2', 'start_time' => '07:45:00', 'end_time' => '08:30:00', 'is_break' => false, 'order' => 2],
-            ['name' => 'Jam Ke-3', 'start_time' => '08:30:00', 'end_time' => '09:15:00', 'is_break' => false, 'order' => 3],
-            ['name' => 'Istirahat Pagi', 'start_time' => '09:15:00', 'end_time' => '09:45:00', 'is_break' => true, 'order' => 4],
+            ['name' => 'Jam Ke-1', 'start_time' => '07:15:00', 'end_time' => '08:00:00', 'is_break' => false, 'order' => 1],
+            ['name' => 'Jam Ke-2', 'start_time' => '08:00:00', 'end_time' => '08:45:00', 'is_break' => false, 'order' => 2],
+            ['name' => 'Jam Ke-3', 'start_time' => '08:45:00', 'end_time' => '09:30:00', 'is_break' => false, 'order' => 3],
+            ['name' => 'Istirahat Pagi', 'start_time' => '09:30:00', 'end_time' => '09:45:00', 'is_break' => true, 'order' => 4],
             ['name' => 'Jam Ke-4', 'start_time' => '09:45:00', 'end_time' => '10:30:00', 'is_break' => false, 'order' => 5],
             ['name' => 'Jam Ke-5', 'start_time' => '10:30:00', 'end_time' => '11:15:00', 'is_break' => false, 'order' => 6],
             ['name' => 'Jam Ke-6', 'start_time' => '11:15:00', 'end_time' => '12:00:00', 'is_break' => false, 'order' => 7],
+            ['name' => 'Istirahat Siang', 'start_time' => '12:00:00', 'end_time' => '12:30:00', 'is_break' => true, 'order' => 8],
+            ['name' => 'Jam Ke-7', 'start_time' => '12:30:00', 'end_time' => '13:15:00', 'is_break' => false, 'order' => 9],
+            ['name' => 'Jam Ke-8', 'start_time' => '13:15:00', 'end_time' => '14:00:00', 'is_break' => false, 'order' => 10],
+            ['name' => 'Jam Ke-9', 'start_time' => '14:00:00', 'end_time' => '14:45:00', 'is_break' => false, 'order' => 11],
+            ['name' => 'Jam Ke-10', 'start_time' => '14:45:00', 'end_time' => '15:30:00', 'is_break' => false, 'order' => 12],
         ];
 
         foreach ($timeSlots as $slot) {
-            TimeSlot::firstOrCreate(['name' => $slot['name']], $slot);
+            TimeSlot::updateOrCreate(['name' => $slot['name']], $slot);
         }
 
         // 5. System Configuration

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { AppLayout } from '@/Components/layout/AppLayout';
 import { Card, CardHeader, CardTitle, CardContent } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
@@ -26,6 +26,7 @@ import {
     Layers,
     List,
     Flag,
+    ClipboardList,
 } from 'lucide-react';
 
 interface ScheduleItem {
@@ -488,9 +489,16 @@ export default function WaliKelasJadwal({
                                                                     }`}>
                                                                         {schedule.subject}
                                                                     </span>
-                                                                    <span className="text-[11px] text-muted-foreground font-mono">
-                                                                        Putaran {schedule.cycle_number}
-                                                                    </span>
+                                                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                                                        <span className="text-[11px] text-muted-foreground font-mono">
+                                                                            Putaran {schedule.cycle_number}
+                                                                        </span>
+                                                                        {liveStatus === 'active' && (
+                                                                            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
+                                                                                (Berlangsung)
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
                                                             ) : isFridayAfternoon ? (
                                                                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground italic">
@@ -531,9 +539,16 @@ export default function WaliKelasJadwal({
                                                         </TableCell>
 
                                                         <TableCell className="text-center">
-                                                            {liveStatus === 'active' ? (
+                                                            {liveStatus === 'active' && schedule ? (
+                                                                <Link href={`/guru/journal/create?schedule_id=${schedule.id}`}>
+                                                                    <Button size="sm" className="h-8 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm">
+                                                                        <ClipboardList className="h-3.5 w-3.5" />
+                                                                        Isi Jurnal
+                                                                    </Button>
+                                                                </Link>
+                                                            ) : liveStatus === 'active' ? (
                                                                 <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-bold bg-emerald-600 dark:bg-emerald-500 text-white shadow-sm ring-2 ring-emerald-600/25">
-                                                                    Sedang Berlangsung
+                                                                    Berlangsung
                                                                 </span>
                                                             ) : liveStatus === 'past' ? (
                                                                 <span className="text-[11px] text-muted-foreground font-medium">

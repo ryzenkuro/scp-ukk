@@ -108,6 +108,8 @@ class SharedJadwalSekolahController extends Controller
             'config' => [
                 'active_cycle' => $config->active_cycle,
                 'academic_year' => $config->academic_year,
+                'ceremony_cycle_1' => (bool) $config->ceremony_cycle_1,
+                'ceremony_cycle_2' => (bool) $config->ceremony_cycle_2,
             ],
         ]);
     }

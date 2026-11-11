@@ -14,22 +14,14 @@ import {
     TableCell,
 } from '@/Components/ui/table';
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter,
-} from '@/Components/ui/dialog';
-import {
     BookOpen,
     PlusCircle,
     Search,
     Edit2,
-    Trash2,
-    AlertTriangle,
     Calendar,
     Users,
     Eye,
+    Lock,
 } from 'lucide-react';
 import { formatDateIndo } from '@/lib/utils';
 import { JournalDetailModal, JournalDetailData } from '@/Components/modals/JournalDetailModal';
@@ -57,6 +49,7 @@ interface JournalItem {
     notes: string | null;
     documentation_path?: string | null;
     documentation_url?: string | null;
+    can_edit?: boolean;
     schedule?: {
         id: number;
         subject: string;
@@ -80,16 +73,22 @@ interface PaginatedData<T> {
 
 interface IndexProps {
     journals: PaginatedData<JournalItem>;
+    canCreateJournal?: boolean;
+    activeScheduleId?: number | null;
     filters: {
         search?: string;
         date?: string;
     };
 }
 
-export default function JournalIndex({ journals, filters }: IndexProps) {
+export default function JournalIndex({
+    journals,
+    canCreateJournal = false,
+    activeScheduleId = null,
+    filters,
+}: IndexProps) {
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
     const [selectedDate, setSelectedDate] = useState(filters.date || '');
-    const [deleteItem, setDeleteItem] = useState<JournalItem | null>(null);
     const [selectedDetailJournal, setSelectedDetailJournal] = useState<JournalItem | null>(null);
 
     const handleSearch = (e: React.FormEvent) => {
@@ -106,13 +105,6 @@ export default function JournalIndex({ journals, filters }: IndexProps) {
             search: searchQuery,
             date: val,
         }, { preserveState: true });
-    };
-
-    const submitDelete = () => {
-        if (!deleteItem) return;
-        router.delete(`/guru/journal/${deleteItem.id}`, {
-            onSuccess: () => setDeleteItem(null),
-        });
     };
 
     const countStatus = (attendances: AttendanceItem[] = [], status: string) => {
@@ -134,12 +126,23 @@ export default function JournalIndex({ journals, filters }: IndexProps) {
                                 Catatan materi pembelajaran, catatan kendala kelas, dan rekapitulasi kehadiran siswa.
                             </p>
                         </div>
-                        <Link href="/guru/journal/create">
-                            <Button className="gap-2">
+                        {canCreateJournal ? (
+                            <Link href={activeScheduleId ? `/guru/journal/create?schedule_id=${activeScheduleId}` : '/guru/journal/create'}>
+                                <Button className="gap-2 bg-primary">
+                                    <PlusCircle className="h-4 w-4" />
+                                    Isi Jurnal KBM Baru
+                                </Button>
+                            </Link>
+                        ) : (
+                            <Button
+                                disabled
+                                className="gap-2 opacity-50 cursor-not-allowed bg-muted text-muted-foreground border border-border"
+                                title="Menunggu sesi KBM aktif berikutnya sesuai jadwal"
+                            >
                                 <PlusCircle className="h-4 w-4" />
                                 Isi Jurnal KBM Baru
                             </Button>
-                        </Link>
+                        )}
                     </CardHeader>
 
                     {/* Filter Bar */}
@@ -215,26 +218,27 @@ export default function JournalIndex({ journals, filters }: IndexProps) {
                                                     </Button>
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    <div className="flex items-center justify-end gap-1">
-                                                        <Link href={`/guru/journal/${journal.id}/edit`}>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                className="h-8 w-8 p-0"
-                                                                title="Edit Jurnal & Presensi"
+                                                    <div className="flex items-center justify-end gap-1.5">
+                                                        {journal.can_edit ? (
+                                                            <Link href={`/guru/journal/${journal.id}/edit`}>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="h-8 w-8 p-0"
+                                                                    title="Edit Jurnal & Presensi"
+                                                                >
+                                                                    <Edit2 className="h-3.5 w-3.5 text-primary" />
+                                                                </Button>
+                                                            </Link>
+                                                        ) : (
+                                                            <span
+                                                                className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-muted/60 px-2 py-1 rounded border border-border/70 select-none"
+                                                                title="Terkunci: Jam pembelajaran telah berakhir"
                                                             >
-                                                                <Edit2 className="h-3.5 w-3.5" />
-                                                            </Button>
-                                                        </Link>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={() => setDeleteItem(journal)}
-                                                            className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                                                            title="Hapus Jurnal"
-                                                        >
-                                                            <Trash2 className="h-3.5 w-3.5" />
-                                                        </Button>
+                                                                <Lock className="h-3 w-3 text-muted-foreground/70" />
+                                                                Terkunci
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 </TableCell>
                                             </TableRow>
@@ -274,34 +278,12 @@ export default function JournalIndex({ journals, filters }: IndexProps) {
                 </Card>
             </div>
 
-            {/* Modal Delete Confirmation */}
-            <Dialog open={!!deleteItem} onOpenChange={(open) => !open && setDeleteItem(null)}>
-                <DialogContent className="max-w-sm">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2 text-destructive">
-                            <AlertTriangle className="h-5 w-5" />
-                            Konfirmasi Hapus Jurnal KBM
-                        </DialogTitle>
-                    </DialogHeader>
-                    <p className="text-sm text-muted-foreground">
-                        Apakah Anda yakin ingin menghapus jurnal materi <strong className="text-foreground">{deleteItem?.topic}</strong>? Rekap presensi siswa pada pertemuan ini juga akan dibersihkan.
-                    </p>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setDeleteItem(null)}>
-                            Batal
-                        </Button>
-                        <Button variant="destructive" onClick={submitDelete}>
-                            Ya, Hapus Jurnal
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
             {/* Modal Detail Jurnal & Presensi */}
             <JournalDetailModal
                 isOpen={!!selectedDetailJournal}
                 onClose={() => setSelectedDetailJournal(null)}
                 journal={selectedDetailJournal}
+                canEdit={selectedDetailJournal?.can_edit ?? false}
             />
         </AppLayout>
     );

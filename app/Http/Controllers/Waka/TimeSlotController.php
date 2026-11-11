@@ -238,13 +238,18 @@ class TimeSlotController extends Controller
         ], null, 'A1');
 
         $sheet->fromArray([
-            [1, 'Jam Ke-1', '07:00', '07:45', 'Jam KBM'],
-            [2, 'Jam Ke-2', '07:45', '08:30', 'Jam KBM'],
-            [3, 'Jam Ke-3', '08:30', '09:15', 'Jam KBM'],
-            [4, 'Istirahat Pagi', '09:15', '09:45', 'Istirahat'],
+            [1, 'Jam Ke-1', '07:15', '08:00', 'Jam KBM'],
+            [2, 'Jam Ke-2', '08:00', '08:45', 'Jam KBM'],
+            [3, 'Jam Ke-3', '08:45', '09:30', 'Jam KBM'],
+            [4, 'Istirahat Pagi', '09:30', '09:45', 'Istirahat'],
             [5, 'Jam Ke-4', '09:45', '10:30', 'Jam KBM'],
             [6, 'Jam Ke-5', '10:30', '11:15', 'Jam KBM'],
             [7, 'Jam Ke-6', '11:15', '12:00', 'Jam KBM'],
+            [8, 'Istirahat Siang', '12:00', '12:30', 'Istirahat'],
+            [9, 'Jam Ke-7', '12:30', '13:15', 'Jam KBM'],
+            [10, 'Jam Ke-8', '13:15', '14:00', 'Jam KBM'],
+            [11, 'Jam Ke-9', '14:00', '14:45', 'Jam KBM'],
+            [12, 'Jam Ke-10', '14:45', '15:30', 'Jam KBM'],
         ], null, 'A2');
 
         foreach (range('A', 'E') as $col) {
@@ -253,7 +258,7 @@ class TimeSlotController extends Controller
 
         return response()->streamDownload(
             fn () => (new Xlsx($spreadsheet))->save('php://output'),
-            'contoh_import_jam_pelajaran_7_sesi.xlsx',
+            'contoh_import_jam_pelajaran_12_sesi.xlsx',
             ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
         );
     }

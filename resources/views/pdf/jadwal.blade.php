@@ -143,14 +143,21 @@
                     </tr>
                     @endif
                     @forelse($jadwals as $index => $j)
-                    @if(!empty($hasCeremony) && $j->day_of_week === 'Senin' && substr($j->start_time, 0, 5) === '07:15')
-                        @continue
-                    @endif
+                    @php
+                        $startTimeStr = substr($j->start_time, 0, 5);
+                        $endTimeStr = substr($j->end_time, 0, 5);
+                        if (!empty($hasCeremony) && $j->day_of_week === 'Senin' && $startTimeStr === '07:15') {
+                            if ($endTimeStr <= '08:00') {
+                                continue;
+                            }
+                            $startTimeStr = '08:00';
+                        }
+                    @endphp
                     <tr class="{{ $index % 2 === 1 ? 'bg-slate-50/70' : 'bg-white' }}">
                         <td class="border border-slate-900 px-3 py-2 text-center font-medium">{{ $index + 1 }}</td>
                         <td class="border border-slate-900 px-3 py-2 font-bold text-slate-900">{{ $j->day_of_week }}</td>
                         <td class="border border-slate-900 px-3 py-2 text-slate-800 whitespace-nowrap font-mono text-[11px]">
-                            {{ substr($j->start_time, 0, 5) }} - {{ substr($j->end_time, 0, 5) }} WIB
+                            {{ $startTimeStr }} - {{ $endTimeStr }} WIB
                         </td>
                         <td class="border border-slate-900 px-3 py-2 font-bold text-slate-900">{{ $j->subject }}</td>
                         <td class="border border-slate-900 px-3 py-2 font-medium text-slate-800">{{ $j->teacher?->fullname ?? ($j->teacher?->username ?? 'Guru') }}</td>

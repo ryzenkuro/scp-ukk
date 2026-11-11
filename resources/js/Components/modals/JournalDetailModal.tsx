@@ -45,6 +45,7 @@ export interface JournalDetailData {
     date: string;
     topic: string;
     notes: string | null;
+    can_edit?: boolean;
     documentation_path?: string | null;
     documentation_url?: string | null;
     schedule?: {
@@ -276,7 +277,7 @@ export function JournalDetailModal({ isOpen, onClose, journal, canEdit = true }:
 
                     {/* Footer */}
                     <DialogFooter className="p-4 border-t border-border bg-muted/20 flex sm:items-center sm:justify-between gap-2">
-                        {canEdit ? (
+                        {canEdit && journal.can_edit !== false ? (
                             <Link href={`/guru/journal/${journal.id}/edit`}>
                                 <Button variant="outline" size="sm" className="gap-1.5 text-xs">
                                     <Edit2 className="h-3.5 w-3.5" />

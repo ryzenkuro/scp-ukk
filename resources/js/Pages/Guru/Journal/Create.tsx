@@ -24,6 +24,7 @@ import {
     Camera,
     Upload,
     Trash2,
+    AlertTriangle,
 } from 'lucide-react';
 import { JournalCameraModal } from '@/Components/camera/JournalCameraModal';
 
@@ -64,6 +65,9 @@ interface CreateProps {
     approvedLeaves?: ApprovedLeaveItem[];
     todayDate: string;
     activeCycle: number;
+    isLocked?: boolean;
+    graceMinutesRemaining?: number | null;
+    timeStatus?: string;
 }
 
 export default function JournalCreate({
@@ -73,6 +77,9 @@ export default function JournalCreate({
     approvedLeaves = [],
     todayDate,
     activeCycle,
+    isLocked = false,
+    graceMinutesRemaining = null,
+    timeStatus = 'upcoming',
 }: CreateProps) {
     const getApprovedLeave = (studentId: number, dateStr: string) => {
         return approvedLeaves?.find(
@@ -229,6 +236,26 @@ export default function JournalCreate({
                     </div>
                 </div>
 
+                {/* Alert Banners (Toleransi 30 Menit / Sedang Berlangsung) */}
+                {graceMinutesRemaining !== null && graceMinutesRemaining !== undefined && (
+                    <div className="flex items-center gap-3 p-4 rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/40 dark:border-amber-800 text-amber-900 dark:text-amber-200">
+                        <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+                        <div className="text-xs">
+                            <span className="font-bold">Peringatan Masa Toleransi Pengisian Jurnal (30 Menit):</span>
+                            {' '}Jam pelajaran telah usai. Anda memiliki sisa waktu <strong>{graceMinutesRemaining} menit</strong> untuk melengkapi pengisian jurnal dan presensi KBM ini sebelum ditandai tidak mengisi jurnal.
+                        </div>
+                    </div>
+                )}
+                {isLocked && !graceMinutesRemaining && (
+                    <div className="flex items-center gap-3 p-3.5 rounded-xl border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200">
+                        <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+                        <div className="text-xs">
+                            <span className="font-bold">Sesi KBM Sedang Berlangsung:</span>
+                            {' '}Jadwal mengajar dan tanggal pelaksanaan dikunci otomatis sesuai sesi KBM aktif Anda saat ini.
+                        </div>
+                    </div>
+                )}
+
                 {/* Form Informasi KBM */}
                 <Card>
                     <CardHeader className="pb-4">
@@ -239,12 +266,24 @@ export default function JournalCreate({
                     <CardContent className="space-y-4 pt-0">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
-                                <Label htmlFor="schedule_id">Pilih Jadwal Mengajar *</Label>
+                                <div className="flex items-center justify-between">
+                                    <Label htmlFor="schedule_id">Pilih Jadwal Mengajar *</Label>
+                                    {isLocked && (
+                                        <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                                            🔒 Terkunci (Sesi KBM aktif)
+                                        </span>
+                                    )}
+                                </div>
                                 <select
                                     id="schedule_id"
                                     value={form.data.schedule_id}
+                                    disabled={isLocked}
                                     onChange={(e) => handleScheduleChange(e.target.value)}
-                                    className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm"
+                                    className={`flex h-10 w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm ${
+                                        isLocked
+                                            ? 'bg-muted/70 text-muted-foreground cursor-not-allowed border-dashed'
+                                            : 'bg-transparent'
+                                    }`}
                                     required
                                 >
                                     {schedules.map((s) => (
@@ -253,17 +292,28 @@ export default function JournalCreate({
                                         </option>
                                     ))}
                                 </select>
+                                {isLocked && <input type="hidden" name="schedule_id" value={form.data.schedule_id} />}
                             </div>
 
                             <div className="space-y-1.5">
-                                <Label htmlFor="date">Tanggal Pelaksanaan *</Label>
+                                <div className="flex items-center justify-between">
+                                    <Label htmlFor="date">Tanggal Pelaksanaan *</Label>
+                                    {isLocked && (
+                                        <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                                            🔒 Hari Ini
+                                        </span>
+                                    )}
+                                </div>
                                 <Input
                                     id="date"
                                     type="date"
+                                    disabled={isLocked}
                                     value={form.data.date}
                                     onChange={(e) => form.setData('date', e.target.value)}
+                                    className={isLocked ? 'bg-muted/70 text-muted-foreground cursor-not-allowed border-dashed' : ''}
                                     required
                                 />
+                                {isLocked && <input type="hidden" name="date" value={form.data.date} />}
                             </div>
                         </div>
 

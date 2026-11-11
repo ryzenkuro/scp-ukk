@@ -32,12 +32,56 @@ class DashboardController extends Controller
         $currentDay = $dayMap[date('l')] ?? 'Senin';
 
         // Jadwal mengajar guru hari ini berdasarkan hari dan siklus putaran aktif
-        $todaySchedules = Schedule::with(['schoolClass', 'room', 'startSlot', 'endSlot'])
+        $rawTodaySchedules = Schedule::with(['schoolClass', 'room', 'startSlot', 'endSlot'])
             ->where('teacher_id', $teacher->id)
             ->where('day_of_week', $currentDay)
             ->where('cycle_number', $config->active_cycle)
             ->orderBy('start_time')
             ->get();
+
+        $todayDate = now()->toDateString();
+        $now = now();
+
+        $todaySchedules = $rawTodaySchedules->map(function ($s) use ($todayDate, $now) {
+            $journal = Journal::where('schedule_id', $s->id)
+                ->whereDate('date', $todayDate)
+                ->first();
+
+            $startTime = \Carbon\Carbon::createFromTimeString($s->start_time);
+            $endTime = \Carbon\Carbon::createFromTimeString($s->end_time);
+            $graceEnd = $endTime->copy()->addMinutes(30);
+
+            $timeStatus = 'upcoming';
+            $remainingGrace = null;
+
+            $canEdit = false;
+            if ($journal) {
+                $timeStatus = 'filled';
+                $canEdit = $now->lte($graceEnd);
+            } elseif ($now->lt($startTime)) {
+                $timeStatus = 'upcoming';
+            } elseif ($now->lte($endTime)) {
+                $timeStatus = 'ongoing';
+            } elseif ($now->lte($graceEnd)) {
+                $timeStatus = 'grace_period';
+                $remainingGrace = max(1, (int) round($now->diffInSeconds($graceEnd, false) / 60));
+            } else {
+                $timeStatus = 'missed';
+            }
+
+            return array_merge($s->toArray(), [
+                'is_filled_today' => (bool) $journal,
+                'journal_id' => $journal?->id,
+                'time_status' => $timeStatus,
+                'remaining_grace_minutes' => $remainingGrace,
+                'can_edit' => $canEdit,
+            ]);
+        });
+
+        // Deteksi apakah ada jadwal yang sedang aktif (ongoing / grace_period) dan belum diisi
+        $activeSchedule = $todaySchedules->first(fn ($s) => in_array($s['time_status'], ['ongoing', 'grace_period']));
+
+        $isWaka = $teacher->isWaka() || $teacher->role?->name === 'waka';
 
         // 5 Jurnal terbaru yang diisi guru
         $recentJournals = Journal::with(['schedule.schoolClass', 'schedule.room', 'attendances.student'])
@@ -45,7 +89,20 @@ class DashboardController extends Controller
             ->orderByDesc('date')
             ->orderByDesc('id')
             ->take(5)
-            ->get();
+            ->get()
+            ->map(function ($j) use ($todayDate, $now, $isWaka) {
+                $isToday = $j->date === $todayDate;
+                $canEdit = false;
+                if ($isWaka) {
+                    $canEdit = true;
+                } elseif ($isToday && $j->schedule) {
+                    $endTime = \Carbon\Carbon::createFromTimeString($j->schedule->end_time);
+                    $cutoff = $endTime->copy()->addMinutes(30);
+                    $canEdit = $now->lte($cutoff);
+                }
+                $j->can_edit = $canEdit;
+                return $j;
+            });
 
         // Metrik statistik guru
         $totalJournals = Journal::where('teacher_id', $teacher->id)->count();
@@ -56,6 +113,7 @@ class DashboardController extends Controller
 
         return Inertia::render('Guru/Dashboard', [
             'todaySchedules' => $todaySchedules,
+            'activeSchedule' => $activeSchedule,
             'recentJournals' => $recentJournals,
             'currentDay' => $currentDay,
             'stats' => [

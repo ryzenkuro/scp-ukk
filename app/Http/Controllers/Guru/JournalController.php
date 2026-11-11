@@ -22,7 +22,51 @@ class JournalController extends Controller
      */
     public function index(Request $request): Response
     {
-        $teacherId = auth()->id();
+        $teacher = auth()->user();
+        $teacherId = $teacher->id;
+        $isWaka = $teacher->isWaka() || $teacher->role?->name === 'waka';
+        $config = SystemConfiguration::current();
+
+        $dayMap = [
+            'Monday' => 'Senin',
+            'Tuesday' => 'Selasa',
+            'Wednesday' => 'Rabu',
+            'Thursday' => 'Kamis',
+            'Friday' => 'Jumat',
+            'Saturday' => 'Sabtu',
+            'Sunday' => 'Minggu',
+        ];
+        $currentDay = $dayMap[date('l')] ?? 'Senin';
+        $todayDate = now()->toDateString();
+        $now = now();
+
+        // Cari jadwal hari ini untuk guru bersangkutan pada siklus aktif
+        $todaySchedules = Schedule::where('teacher_id', $teacherId)
+            ->where('day_of_week', $currentDay)
+            ->where('cycle_number', $config->active_cycle)
+            ->orderBy('start_time')
+            ->get();
+
+        $activeScheduleForJournal = null;
+        foreach ($todaySchedules as $sched) {
+            $isFilled = Journal::where('schedule_id', $sched->id)->whereDate('date', $todayDate)->exists();
+            if ($isFilled) {
+                continue;
+            }
+
+            $startTime = \Carbon\Carbon::createFromTimeString($sched->start_time);
+            $endTime = \Carbon\Carbon::createFromTimeString($sched->end_time);
+            $graceEnd = $endTime->copy()->addMinutes(30);
+
+            // Boleh diisi jika sedang berlangsung atau dalam masa toleransi 30 menit
+            if ($now->gte($startTime) && $now->lte($graceEnd)) {
+                $activeScheduleForJournal = $sched->id;
+                break;
+            }
+        }
+
+        $canCreateJournal = $isWaka || ($activeScheduleForJournal !== null);
+
         $search = $request->input('search');
         $date = $request->input('date');
 
@@ -47,8 +91,24 @@ class JournalController extends Controller
 
         $journals = $query->paginate(15)->withQueryString();
 
+        $journals->getCollection()->transform(function ($j) use ($todayDate, $now, $isWaka) {
+            $isToday = $j->date === $todayDate;
+            $canEdit = false;
+            if ($isWaka) {
+                $canEdit = true;
+            } elseif ($isToday && $j->schedule) {
+                $endTime = \Carbon\Carbon::createFromTimeString($j->schedule->end_time);
+                $cutoff = $endTime->copy()->addMinutes(30);
+                $canEdit = $now->lte($cutoff);
+            }
+            $j->can_edit = $canEdit;
+            return $j;
+        });
+
         return Inertia::render('Guru/Journal/Index', [
             'journals' => $journals,
+            'canCreateJournal' => $canCreateJournal,
+            'activeScheduleId' => $activeScheduleForJournal,
             'filters' => [
                 'search' => $search,
                 'date' => $date,
@@ -59,12 +119,25 @@ class JournalController extends Controller
     /**
      * Form pengisian jurnal KBM baru & checklist presensi
      */
-    public function create(Request $request): Response
+    public function create(Request $request): Response|RedirectResponse
     {
-        $teacherId = auth()->id();
+        $teacher = auth()->user();
+        $teacherId = $teacher->id;
+        $isWaka = $teacher->isWaka() || $teacher->role?->name === 'waka';
         $config = SystemConfiguration::current();
 
-        $selectedScheduleId = $request->input('schedule_id');
+        $dayMap = [
+            'Monday' => 'Senin',
+            'Tuesday' => 'Selasa',
+            'Wednesday' => 'Rabu',
+            'Thursday' => 'Kamis',
+            'Friday' => 'Jumat',
+            'Saturday' => 'Sabtu',
+            'Sunday' => 'Minggu',
+        ];
+        $currentDay = $dayMap[date('l')] ?? 'Senin';
+        $todayDate = now()->toDateString();
+        $now = now();
 
         // Ambil seluruh jadwal yang diampu oleh guru ini
         $schedules = Schedule::with(['schoolClass', 'room', 'startSlot', 'endSlot'])
@@ -73,17 +146,83 @@ class JournalController extends Controller
             ->orderBy('start_time')
             ->get();
 
+        // Cari sesi yang aktif saat ini (ongoing atau toleransi 30 menit) dan belum diisi hari ini
+        $activeTodaySched = null;
+        $todaySchedules = $schedules->filter(fn ($s) => $s->day_of_week === $currentDay && (int) $s->cycle_number === (int) $config->active_cycle);
+
+        foreach ($todaySchedules as $sched) {
+            $isFilled = Journal::where('schedule_id', $sched->id)->whereDate('date', $todayDate)->exists();
+            if ($isFilled) {
+                continue;
+            }
+
+            $startTime = \Carbon\Carbon::createFromTimeString($sched->start_time);
+            $endTime = \Carbon\Carbon::createFromTimeString($sched->end_time);
+            $graceEnd = $endTime->copy()->addMinutes(30);
+
+            if ($now->gte($startTime) && $now->lte($graceEnd)) {
+                $activeTodaySched = $sched;
+                break;
+            }
+        }
+
+        $selectedScheduleId = $request->input('schedule_id');
         $selectedSchedule = null;
-        $students = [];
-        $approvedLeaves = [];
 
         if ($selectedScheduleId) {
             $selectedSchedule = $schedules->firstWhere('id', (int) $selectedScheduleId);
         }
 
+        if (! $selectedSchedule && $activeTodaySched) {
+            $selectedSchedule = $activeTodaySched;
+        }
+
         if (! $selectedSchedule && $schedules->isNotEmpty()) {
             $selectedSchedule = $schedules->first();
         }
+
+        // Hitung status penguncian dan batas waktu toleransi
+        $isLocked = false;
+        $graceMinutesRemaining = null;
+        $timeStatus = 'upcoming';
+
+        if ($selectedSchedule) {
+            if ($selectedSchedule->day_of_week === $currentDay && (int) $selectedSchedule->cycle_number === (int) $config->active_cycle) {
+                $startTime = \Carbon\Carbon::createFromTimeString($selectedSchedule->start_time);
+                $endTime = \Carbon\Carbon::createFromTimeString($selectedSchedule->end_time);
+                $graceEnd = $endTime->copy()->addMinutes(30);
+
+                if ($now->lt($startTime)) {
+                    $timeStatus = 'upcoming';
+                    if (! $isWaka) {
+                        return redirect()->route('guru.journal.index')
+                            ->with('error', 'Sesi KBM untuk jadwal ini belum dimulai. Jurnal baru dapat diisi saat jam pelajaran berlangsung.');
+                    }
+                } elseif ($now->lte($endTime)) {
+                    $timeStatus = 'ongoing';
+                    $isLocked = true;
+                } elseif ($now->lte($graceEnd)) {
+                    $timeStatus = 'grace_period';
+                    $isLocked = true;
+                    $graceMinutesRemaining = max(1, (int) round($now->diffInSeconds($graceEnd, false) / 60));
+                } else {
+                    $timeStatus = 'missed';
+                    if (! $isWaka) {
+                        return redirect()->route('guru.journal.index')
+                            ->with('error', 'Batas toleransi pengisian jurnal KBM (30 menit setelah jam pelajaran selesai) telah berakhir. Sesi ini ditandai sebagai tidak mengisi jurnal.');
+                    }
+                }
+            } else {
+                // Jika jadwal bukan hari ini atau putaran lain, guru biasa tidak diizinkan membuka pengisian acak
+                if (! $isWaka) {
+                    return redirect()->route('guru.journal.index')
+                        ->with('error', 'Pengisian jurnal hanya diperkenankan untuk jadwal KBM yang sedang aktif hari ini.');
+                }
+            }
+        }
+
+        $students = [];
+        $approvedLeaves = [];
 
         if ($selectedSchedule) {
             // Ambil seluruh siswa aktif di kelas tersebut
@@ -104,8 +243,11 @@ class JournalController extends Controller
             'selectedSchedule' => $selectedSchedule,
             'students' => $students,
             'approvedLeaves' => $approvedLeaves,
-            'todayDate' => now()->toDateString(),
+            'todayDate' => $todayDate,
             'activeCycle' => $config->active_cycle,
+            'isLocked' => $isLocked,
+            'graceMinutesRemaining' => $graceMinutesRemaining,
+            'timeStatus' => $timeStatus,
         ]);
     }
 
@@ -114,7 +256,10 @@ class JournalController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        $teacherId = auth()->id();
+        $teacher = auth()->user();
+        $teacherId = $teacher->id;
+        $isWaka = $teacher->isWaka() || $teacher->role?->name === 'waka';
+        $config = SystemConfiguration::current();
 
         $validated = $request->validate([
             'schedule_id' => ['required', 'exists:schedules,id'],
@@ -135,8 +280,43 @@ class JournalController extends Controller
 
         $schedule = Schedule::findOrFail($validated['schedule_id']);
 
-        if ($schedule->teacher_id !== $teacherId && auth()->user()->role?->name !== 'waka') {
+        if ($schedule->teacher_id !== $teacherId && ! $isWaka) {
             abort(403, 'Anda tidak berhak mengisi jurnal untuk jadwal guru lain.');
+        }
+
+        // Cek duplikasi pengisian pada tanggal yang sama
+        $alreadyExists = Journal::where('schedule_id', $schedule->id)
+            ->whereDate('date', $validated['date'])
+            ->exists();
+
+        if ($alreadyExists) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['schedule_id' => "Jurnal KBM untuk jadwal ini pada tanggal {$validated['date']} sudah pernah diisi."]);
+        }
+
+        // Validasi batas waktu 30 menit jika bukan waka
+        if (! $isWaka) {
+            $dayMap = [
+                'Monday' => 'Senin',
+                'Tuesday' => 'Selasa',
+                'Wednesday' => 'Rabu',
+                'Thursday' => 'Kamis',
+                'Friday' => 'Jumat',
+                'Saturday' => 'Sabtu',
+                'Sunday' => 'Minggu',
+            ];
+            $currentDay = $dayMap[date('l')] ?? 'Senin';
+
+            if ($schedule->day_of_week === $currentDay && (int) $schedule->cycle_number === (int) $config->active_cycle) {
+                $endTime = \Carbon\Carbon::createFromTimeString($schedule->end_time);
+                $graceEnd = $endTime->copy()->addMinutes(30);
+
+                if (now()->gt($graceEnd)) {
+                    return redirect()->route('guru.journal.index')
+                        ->with('error', 'Batas toleransi pengisian jurnal KBM (30 menit setelah jam pelajaran selesai) telah berakhir.');
+                }
+            }
         }
 
         $documentationPath = null;
@@ -188,9 +368,12 @@ class JournalController extends Controller
     /**
      * Form edit jurnal KBM dan pembaruan absensi siswa
      */
-    public function edit(Journal $journal): Response
+    public function edit(Journal $journal): Response|RedirectResponse
     {
-        if ($journal->teacher_id !== auth()->id() && auth()->user()->role?->name !== 'waka') {
+        $teacher = auth()->user();
+        $isWaka = $teacher->isWaka() || $teacher->role?->name === 'waka';
+
+        if ($journal->teacher_id !== $teacher->id && ! $isWaka) {
             abort(403, 'Akses ditolak.');
         }
 
@@ -201,6 +384,22 @@ class JournalController extends Controller
             'schedule.endSlot',
             'attendances.student',
         ]);
+
+        // Validasi apakah jam pembelajaran masih memungkinkan untuk diedit
+        $isToday = $journal->date === now()->toDateString();
+        $canEdit = false;
+        if ($isWaka) {
+            $canEdit = true;
+        } elseif ($isToday && $journal->schedule) {
+            $endTime = \Carbon\Carbon::createFromTimeString($journal->schedule->end_time);
+            $cutoff = $endTime->copy()->addMinutes(30);
+            $canEdit = now()->lte($cutoff);
+        }
+
+        if (! $canEdit) {
+            return redirect()->route('guru.journal.index')
+                ->with('error', 'Jurnal KBM ini sudah terkunci permanen dan tidak dapat diedit karena jam pembelajaran telah berakhir.');
+        }
 
         $studentIds = $journal->attendances->pluck('student_id');
         $approvedLeaves = LeaveRequest::whereIn('status', ['approved', 'rejected'])
@@ -219,8 +418,26 @@ class JournalController extends Controller
      */
     public function update(Request $request, Journal $journal): RedirectResponse
     {
-        if ($journal->teacher_id !== auth()->id() && auth()->user()->role?->name !== 'waka') {
+        $teacher = auth()->user();
+        $isWaka = $teacher->isWaka() || $teacher->role?->name === 'waka';
+
+        if ($journal->teacher_id !== $teacher->id && ! $isWaka) {
             abort(403, 'Akses ditolak.');
+        }
+
+        $isToday = $journal->date === now()->toDateString();
+        $canEdit = false;
+        if ($isWaka) {
+            $canEdit = true;
+        } elseif ($isToday && $journal->schedule) {
+            $endTime = \Carbon\Carbon::createFromTimeString($journal->schedule->end_time);
+            $cutoff = $endTime->copy()->addMinutes(30);
+            $canEdit = now()->lte($cutoff);
+        }
+
+        if (! $canEdit) {
+            return redirect()->route('guru.journal.index')
+                ->with('error', 'Batas waktu pengeditan jurnal KBM telah berakhir. Perubahan tidak dapat disimpan.');
         }
 
         $validated = $request->validate([
@@ -276,8 +493,12 @@ class JournalController extends Controller
      */
     public function destroy(Journal $journal): RedirectResponse
     {
-        if ($journal->teacher_id !== auth()->id() && auth()->user()->role?->name !== 'waka') {
-            abort(403, 'Akses ditolak.');
+        $teacher = auth()->user();
+        $isWaka = $teacher->isWaka() || $teacher->role?->name === 'waka';
+
+        if (! $isWaka) {
+            return redirect()->route('guru.journal.index')
+                ->with('error', 'Jurnal KBM yang sudah terisi tidak dapat dihapus karena menjadi arsip resmi catatan kehadiran sekolah.');
         }
 
         $topic = $journal->topic;

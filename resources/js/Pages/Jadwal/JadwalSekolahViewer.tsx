@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { AppLayout } from '@/Components/layout/AppLayout';
 import { Card, CardHeader, CardTitle, CardContent } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
@@ -26,6 +26,8 @@ import {
     Layers,
     List,
     Filter,
+    Flag,
+    ClipboardList,
 } from 'lucide-react';
 
 interface SchoolClassItem {
@@ -515,6 +517,41 @@ export default function JadwalSekolahViewer({
                                                 }
 
                                                 // 2. Baris Jam Pelajaran KBM
+                                                const isCycleCeremonyActive = selectedCycle === '2'
+                                                    ? Boolean(config?.ceremony_cycle_2)
+                                                    : (selectedCycle === '1' ? Boolean(config?.ceremony_cycle_1) : Boolean(config?.active_cycle === 2 ? config?.ceremony_cycle_2 : config?.ceremony_cycle_1));
+
+                                                const isMondayCeremony = selectedDay === 'Senin' && (slot.order === 1 || slot.name === 'Jam Ke-1') && isCycleCeremonyActive;
+
+                                                if (isMondayCeremony) {
+                                                    return (
+                                                        <TableRow
+                                                            key={slot.id}
+                                                            className="bg-red-500/10 dark:bg-red-500/15 hover:bg-red-500/15 border-y border-red-300 dark:border-red-700/50"
+                                                        >
+                                                            <TableCell className="text-center font-bold text-xs">
+                                                                <span className="inline-block px-2.5 py-1 rounded font-mono font-bold text-xs bg-red-600 text-white shadow-sm">
+                                                                    {slot.name}
+                                                                </span>
+                                                            </TableCell>
+                                                            <TableCell className="font-mono text-xs font-semibold text-red-900 dark:text-red-200">
+                                                                {slotStart} - {slotEnd}
+                                                            </TableCell>
+                                                            <TableCell colSpan={3} className="py-2.5">
+                                                                <div className="flex items-center gap-2 text-xs font-semibold text-red-900 dark:text-red-200">
+                                                                    <Flag className="h-4 w-4 text-red-600 dark:text-red-400 flex-shrink-0" />
+                                                                    <span>Upacara Bendera Hari Senin &bull; Lapangan Utama (Wajib Hadir Seluruh Civitas Sekolah)</span>
+                                                                </div>
+                                                            </TableCell>
+                                                            <TableCell className="text-center">
+                                                                <Badge variant="outline" className="bg-red-500/20 text-red-800 dark:text-red-300 border-red-400 font-bold text-[11px] gap-1">
+                                                                    <Flag className="h-3 w-3" /> Upacara
+                                                                </Badge>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    );
+                                                }
+
                                                 const schedule = getScheduleForSlot(selectedDay, slot);
                                                 const isFridayAfternoon = selectedDay === 'Jumat' && (slot.name === 'Jam Ke-9' || slot.name === 'Jam Ke-10');
 
@@ -551,9 +588,16 @@ export default function JadwalSekolahViewer({
                                                                     }`}>
                                                                         {schedule.subject}
                                                                     </span>
-                                                                    <span className="text-[11px] text-muted-foreground font-mono">
-                                                                        Putaran {schedule.cycle_number}
-                                                                    </span>
+                                                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                                                        <span className="text-[11px] text-muted-foreground font-mono">
+                                                                            Putaran {schedule.cycle_number}
+                                                                        </span>
+                                                                        {liveStatus === 'active' && (
+                                                                            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
+                                                                                (Berlangsung)
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
                                                             ) : isFridayAfternoon ? (
                                                                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground italic">
@@ -601,9 +645,16 @@ export default function JadwalSekolahViewer({
                                                         </TableCell>
 
                                                         <TableCell className="text-center">
-                                                            {liveStatus === 'active' ? (
+                                                            {liveStatus === 'active' && schedule ? (
+                                                                <Link href={`/guru/journal/create?schedule_id=${schedule.id}`}>
+                                                                    <Button size="sm" className="h-8 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm">
+                                                                        <ClipboardList className="h-3.5 w-3.5" />
+                                                                        Isi Jurnal
+                                                                    </Button>
+                                                                </Link>
+                                                            ) : liveStatus === 'active' ? (
                                                                 <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-bold bg-emerald-600 dark:bg-emerald-500 text-white shadow-sm ring-2 ring-emerald-600/25">
-                                                                    Sedang Berlangsung
+                                                                    Berlangsung
                                                                 </span>
                                                             ) : liveStatus === 'past' ? (
                                                                 <span className="text-[11px] text-muted-foreground font-medium">

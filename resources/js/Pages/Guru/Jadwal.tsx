@@ -26,6 +26,7 @@ import {
     List,
     PlusCircle,
     Flag,
+    ClipboardList,
 } from 'lucide-react';
 
 interface TeacherInfo {
@@ -468,9 +469,16 @@ export default function GuruJadwal({
                                                                     }`}>
                                                                         {schedule.subject}
                                                                     </span>
-                                                                    <span className="text-[11px] text-muted-foreground font-mono">
-                                                                        Putaran {schedule.cycle_number}
-                                                                    </span>
+                                                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                                                        <span className="text-[11px] text-muted-foreground font-mono">
+                                                                            Putaran {schedule.cycle_number}
+                                                                        </span>
+                                                                        {liveStatus === 'active' && (
+                                                                            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
+                                                                                (Berlangsung)
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
                                                             ) : (
                                                                 <span className="text-xs text-muted-foreground/60 italic">
@@ -509,28 +517,16 @@ export default function GuruJadwal({
                                                         {/* Status & Shortcut Jurnal */}
                                                         <TableCell className="text-center">
                                                             {liveStatus === 'active' && schedule ? (
-                                                                <div className="flex flex-col items-center gap-1.5">
-                                                                    <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-bold bg-emerald-600 dark:bg-emerald-500 text-white shadow-sm ring-2 ring-emerald-600/25">
-                                                                        Sedang Berlangsung
-                                                                    </span>
-                                                                    <Link href={`/guru/journal/create?schedule_id=${schedule.id}`}>
-                                                                        <Button size="sm" variant="default" className="h-7 text-xs font-semibold gap-1 bg-emerald-700 hover:bg-emerald-800 text-white shadow-sm">
-                                                                            <PlusCircle className="h-3.5 w-3.5" />
-                                                                            <span>Isi Jurnal KBM</span>
-                                                                        </Button>
-                                                                    </Link>
-                                                                </div>
-                                                            ) : liveStatus === 'past' && schedule ? (
-                                                                <div className="flex items-center justify-center gap-2">
-                                                                    <span className="text-[11px] text-muted-foreground font-medium">
-                                                                        Selesai
-                                                                    </span>
-                                                                    <Link href={`/guru/journal/create?schedule_id=${schedule.id}`}>
-                                                                        <Button size="sm" variant="ghost" className="h-6 text-[11px] px-2 text-muted-foreground hover:text-foreground">
-                                                                            + Jurnal
-                                                                        </Button>
-                                                                    </Link>
-                                                                </div>
+                                                                <Link href={`/guru/journal/create?schedule_id=${schedule.id}`}>
+                                                                    <Button size="sm" className="h-8 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm">
+                                                                        <ClipboardList className="h-3.5 w-3.5" />
+                                                                        Isi Jurnal
+                                                                    </Button>
+                                                                </Link>
+                                                            ) : liveStatus === 'past' ? (
+                                                                <span className="text-[11px] text-muted-foreground font-medium">
+                                                                    Selesai
+                                                                </span>
                                                             ) : liveStatus === 'future' && schedule ? (
                                                                 <span className="text-[11px] text-muted-foreground font-medium">
                                                                     Mendatang
@@ -572,13 +568,12 @@ export default function GuruJadwal({
                                                 <TableHead className="font-bold">Mata Pelajaran</TableHead>
                                                 <TableHead className="font-bold">Kelas Rombel</TableHead>
                                                 <TableHead className="font-bold">Ruangan</TableHead>
-                                                <TableHead className="w-32 text-center font-bold">Aksi</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
                                             {filteredBlockSchedules.length === 0 ? (
                                                 <TableRow>
-                                                    <TableCell colSpan={7} className="text-center py-8 text-sm text-muted-foreground">
+                                                    <TableCell colSpan={6} className="text-center py-8 text-sm text-muted-foreground">
                                                         Tidak ada jadwal mengajar pada hari {selectedDay}.
                                                     </TableCell>
                                                 </TableRow>
@@ -630,14 +625,6 @@ export default function GuruJadwal({
                                                                     Ruang Kelas
                                                                 </Badge>
                                                             )}
-                                                        </TableCell>
-                                                        <TableCell className="text-center">
-                                                            <Link href={`/guru/journal/create?schedule_id=${schedule.id}`}>
-                                                                <Button size="sm" variant="outline" className="h-7 text-xs gap-1">
-                                                                    <BookOpen className="h-3.5 w-3.5 text-primary" />
-                                                                    <span>Isi Jurnal</span>
-                                                                </Button>
-                                                            </Link>
                                                         </TableCell>
                                                     </TableRow>
                                                 ))

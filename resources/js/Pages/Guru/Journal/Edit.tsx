@@ -212,19 +212,24 @@ export default function JournalEdit({ journal, approvedLeaves = [] }: EditProps)
                     <CardContent className="space-y-4 pt-0">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
-                                <Label htmlFor="edit_date">Tanggal Pelaksanaan *</Label>
+                                <div className="flex items-center justify-between">
+                                    <Label htmlFor="edit_date">Tanggal Pelaksanaan</Label>
+                                    <span className="text-[11px] font-semibold text-muted-foreground">
+                                        🔒 Terkunci
+                                    </span>
+                                </div>
                                 <Input
                                     id="edit_date"
                                     type="date"
+                                    disabled
                                     value={form.data.date}
-                                    onChange={(e) => form.setData('date', e.target.value)}
-                                    required
+                                    className="bg-muted/70 text-muted-foreground cursor-not-allowed border-dashed"
                                 />
                             </div>
 
                             <div className="space-y-1.5">
                                 <Label>Kelas & Jadwal</Label>
-                                <div className="h-10 px-3 py-2 rounded-md border border-input bg-muted/40 text-sm flex items-center justify-between">
+                                <div className="h-10 px-3 py-2 rounded-md border border-input bg-muted/70 text-muted-foreground border-dashed text-sm flex items-center justify-between">
                                     <span className="font-medium">{journal.schedule?.subject}</span>
                                     <Badge variant="outline">{journal.schedule?.class_name}</Badge>
                                 </div>
