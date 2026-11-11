@@ -134,10 +134,8 @@ export default function ForgotPassword({
                 <Card className="shadow-sm border-border bg-card">
                     <CardHeader className="text-center pb-2">
                         {/* School Logo */}
-                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm mb-2">
-                            {step === 1 && <Mail className="h-6 w-6" />}
-                            {step === 2 && <KeyRound className="h-6 w-6" />}
-                            {step === 3 && <Lock className="h-6 w-6" />}
+                        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-card border border-border/80 p-2 shadow-sm mb-2">
+                            <img src="/images/logosmk.png" alt="Logo SMK N 1 Bantul" className="h-full w-full object-contain" />
                         </div>
                         <CardTitle className="text-xl font-bold tracking-tight">
                             SMK NEGERI 1 BANTUL
@@ -346,7 +344,7 @@ export default function ForgotPassword({
                 </Card>
 
                 <div className="text-center text-[11px] text-muted-foreground mt-4">
-                    &copy; 2026 SMK Negeri 1 Bantul &bull; Uji Kompetensi Keahlian RPL
+                    &copy; 2026 SMK Negeri 1 Bantul &bull; School Class Progress RPL
                 </div>
             </div>
         </section>

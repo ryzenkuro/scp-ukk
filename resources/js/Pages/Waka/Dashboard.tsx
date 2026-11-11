@@ -145,7 +145,7 @@ export default function Dashboard({
                                 Panel Administrator
                             </span>
                             <h2 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-                                Selamat Datang di Sistem UKK
+                                Selamat Datang di Sistem School Class Progress
                             </h2>
                             <p className="text-sm text-muted-foreground max-w-xl">
                                 Pantau operasional presensi, siklus pembelajaran, dan data master sekolah secara terpusat.

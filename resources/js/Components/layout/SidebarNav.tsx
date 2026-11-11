@@ -385,12 +385,12 @@ export function SidebarNav({ isOpen = false, onClose }: SidebarNavProps = {}) {
       {/* Brand Header */}
       <div className="flex h-16 items-center justify-between border-b border-border px-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary font-bold text-primary-foreground shadow-sm">
-            SP
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-card border border-border/80 p-1 shadow-sm shrink-0">
+            <img src="/images/logosmk.png" alt="Logo SMK N 1 Bantul" className="h-full w-full object-contain" />
           </div>
           <div>
             <div className="text-sm font-bold tracking-tight">SMK N 1 BANTUL</div>
-            <div className="text-[11px] font-medium text-muted-foreground">Presensi & Agenda UKK</div>
+            <div className="text-[11px] font-medium text-muted-foreground">Presensi & Agenda School Class Progress</div>
           </div>
         </div>
         {onClose && (

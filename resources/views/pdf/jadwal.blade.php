@@ -80,9 +80,7 @@
         <header class="kop-border pb-4 mb-6">
             <div class="flex items-center justify-between gap-4">
                 <div class="flex items-center gap-4">
-                    <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-900 text-white font-black text-2xl shadow-sm">
-                        SP
-                    </div>
+                    <img src="{{ asset('images/logosmk.png') }}" alt="Logo SMK N 1 Bantul" class="h-16 w-16 object-contain shrink-0" />
                     <div>
                         <p class="text-[11px] font-bold uppercase tracking-wider text-slate-600">PEMERINTAH DAERAH DAERAH ISTIMEWA YOGYAKARTA</p>
                         <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-600">DINAS PENDIDIKAN, PEMUDA, DAN OLAHRAGA</p>

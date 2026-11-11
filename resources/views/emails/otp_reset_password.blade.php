@@ -98,7 +98,7 @@
     <div class="container">
         <div class="header">
             <h1>SMK NEGERI 1 BANTUL</h1>
-            <p>Sistem Presensi & Agenda Pembelajaran UKK</p>
+            <p>Sistem Presensi & Agenda Pembelajaran School Class Progress</p>
         </div>
 
         <div class="content">
@@ -118,7 +118,7 @@
         </div>
 
         <div class="footer">
-            &copy; 2026 SMK Negeri 1 Bantul &bull; Uji Kompetensi Keahlian RPL<br>
+            &copy; 2026 SMK Negeri 1 Bantul &bull; School Class Progress RPL<br>
             Email otomatis, mohon untuk tidak membalas pesan ini.
         </div>
     </div>

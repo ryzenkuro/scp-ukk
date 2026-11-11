@@ -35,12 +35,12 @@ export default function Login({ status }: LoginProps) {
             <div className="border border-border bg-card text-card-foreground flex w-full max-w-sm flex-col items-center gap-y-6 rounded-xl p-5 sm:p-8 shadow-sm">
                 <div className="flex flex-col items-center gap-y-2 text-center">
                     {/* Logo */}
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-                        <School className="h-6 w-6" />
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-card border border-border/80 p-2 shadow-sm">
+                        <img src="/images/logosmk.png" alt="Logo SMK N 1 Bantul" className="h-full w-full object-contain" />
                     </div>
                     <h1 className="text-2xl font-bold tracking-tight">SMK N 1 BANTUL</h1>
                     <p className="text-xs text-muted-foreground">
-                        Sistem Presensi & Agenda Pembelajaran UKK
+                        Sistem Presensi & Agenda Pembelajaran School Class Progress
                     </p>
                 </div>
 
@@ -114,7 +114,7 @@ export default function Login({ status }: LoginProps) {
                 </form>
 
                 <div className="text-center text-[11px] text-muted-foreground">
-                    &copy; 2026 SMK Negeri 1 Bantul &bull; Uji Kompetensi Keahlian RPL
+                    &copy; 2026 SMK Negeri 1 Bantul &bull; School Class Progress RPL
                 </div>
             </div>
         </section>
