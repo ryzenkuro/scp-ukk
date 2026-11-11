@@ -262,7 +262,10 @@ export default function ForgotPassword({
                                 <div className="flex items-center justify-between pt-1 text-xs">
                                     <button
                                         type="button"
-                                        onClick={() => setStep(1)}
+                                        onClick={() => {
+                                            setStep(1);
+                                            otpForm.setData('otp', '');
+                                        }}
                                         className="text-muted-foreground hover:underline"
                                     >
                                         Ganti Email

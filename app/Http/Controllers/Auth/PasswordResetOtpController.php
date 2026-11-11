@@ -20,13 +20,24 @@ class PasswordResetOtpController extends Controller
     /**
      * Tampilkan halaman alur Lupa Sandi
      */
-    public function create(): Response
+    public function create(Request $request): Response
     {
+        // Jika akses baru dari Login (?reset=1) atau bukan redirect hasil submit (tidak ada flash status/error),
+        // selalu bersihkan sisa session pemulihan sandi agar mulai dari Langkah 1
+        if ($request->has('reset') || (! session()->has('status') && ! session()->has('error'))) {
+            session()->forget([
+                'password_reset_email',
+                'password_reset_step',
+                'password_reset_verified_code',
+                'demo_otp',
+            ]);
+        }
+
         return Inertia::render('Auth/ForgotPassword', [
             'status' => session('status'),
             'error' => session('error'),
             'demoOtp' => session('demo_otp'),
-            'activeEmail' => session('password_reset_email'),
+            'activeEmail' => session('password_reset_email', ''),
             'currentStep' => session('password_reset_step', 1),
         ]);
     }

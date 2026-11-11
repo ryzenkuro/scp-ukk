@@ -97,7 +97,7 @@ export default function Login({ status }: LoginProps) {
                             <span>Ingat saya</span>
                         </label>
                         <Link
-                            href="/forgot-password"
+                            href="/forgot-password?reset=1"
                             className="text-primary hover:underline font-medium"
                         >
                             *Lupa sandi?
