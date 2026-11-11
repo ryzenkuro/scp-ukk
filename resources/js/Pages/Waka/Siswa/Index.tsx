@@ -294,30 +294,30 @@ export default function SiswaIndex({ siswas, filters, kelasList, angkatanList, c
 
             <div className="space-y-6">
                 {/* Sub-navigasi Tab: Daftar Siswa vs Kelola Rombel & Wali Kelas */}
-                <div className="flex border-b border-border space-x-6">
+                <div className="flex border-b border-border space-x-4 sm:space-x-6 overflow-x-auto no-scrollbar whitespace-nowrap">
                     <button
                         type="button"
                         onClick={() => setActiveTab('siswa')}
-                        className={`pb-3 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${
+                        className={`pb-3 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 shrink-0 ${
                             activeTab === 'siswa'
                                 ? 'border-primary text-primary'
                                 : 'border-transparent text-muted-foreground hover:text-foreground'
                         }`}
                     >
-                        <Users className="h-4 w-4" />
+                        <Users className="h-4 w-4 shrink-0" />
                         Daftar Siswa ({siswas.total})
                     </button>
                     <button
                         type="button"
                         onClick={() => setActiveTab('rombel')}
-                        className={`pb-3 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${
+                        className={`pb-3 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 shrink-0 ${
                             activeTab === 'rombel'
                                 ? 'border-primary text-primary'
                                 : 'border-transparent text-muted-foreground hover:text-foreground'
                         }`}
                     >
-                        <GraduationCap className="h-4 w-4" />
-                        Kelola Rombel &amp; Wali Kelas ({classesData.length > 0 ? classesData.length : 48} Rombel)
+                        <GraduationCap className="h-4 w-4 shrink-0" />
+                        Kelola Rombel<span className="hidden sm:inline"> &amp; Wali Kelas</span> ({classesData.length > 0 ? classesData.length : 48} Rombel)
                     </button>
                 </div>
 
@@ -325,7 +325,7 @@ export default function SiswaIndex({ siswas, filters, kelasList, angkatanList, c
                     <>
                         {/* Header Actions Card */}
                         <Card>
-                    <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4">
+                    <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-4 sm:p-6 pb-4">
                         <div>
                             <CardTitle className="text-xl font-bold tracking-tight">
                                 Pengelolaan Siswa & Kenaikan Kelas
@@ -339,39 +339,39 @@ export default function SiswaIndex({ siswas, filters, kelasList, angkatanList, c
                             <Button
                                 variant="outline"
                                 onClick={() => setIsImportOpen(true)}
-                                className="gap-2"
+                                className="gap-2 text-xs sm:text-sm h-9"
                             >
-                                <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
-                                Import Berkas
+                                <FileSpreadsheet className="h-4 w-4 text-emerald-600 shrink-0" />
+                                Import<span className="hidden sm:inline"> Berkas</span>
                             </Button>
 
                             {/* Tombol Hapus per Kelas */}
                             <Button
                                 variant="outline"
                                 onClick={() => setIsHapusKelasOpen(true)}
-                                className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10"
+                                className="gap-2 text-xs sm:text-sm h-9 text-destructive border-destructive/30 hover:bg-destructive/10"
                             >
-                                <Trash2 className="h-4 w-4" />
-                                Hapus per Kelas
+                                <Trash2 className="h-4 w-4 shrink-0" />
+                                Hapus<span className="hidden sm:inline"> per Kelas</span>
                             </Button>
 
                             {/* Tombol Kenaikan Kelas & Kelulusan per Angkatan */}
                             <Button
                                 variant="outline"
                                 onClick={() => setIsNaikKelasOpen(true)}
-                                className="gap-2"
+                                className="gap-2 text-xs sm:text-sm h-9"
                             >
-                                <ArrowUpCircle className="h-4 w-4 text-emerald-600" />
-                                Naik Kelas / Kelulusan
+                                <ArrowUpCircle className="h-4 w-4 text-emerald-600 shrink-0" />
+                                Naik Kelas<span className="hidden sm:inline"> / Kelulusan</span>
                             </Button>
 
                             {/* Tombol Tambah Siswa */}
                             <Button
                                 onClick={() => setIsCreateOpen(true)}
-                                className="gap-2"
+                                className="gap-2 text-xs sm:text-sm h-9"
                             >
-                                <UserPlus className="h-4 w-4" />
-                                Tambah Siswa Baru
+                                <UserPlus className="h-4 w-4 shrink-0" />
+                                Tambah Siswa<span className="hidden sm:inline"> Baru</span>
                             </Button>
                         </div>
                     </CardHeader>
@@ -434,7 +434,7 @@ export default function SiswaIndex({ siswas, filters, kelasList, angkatanList, c
 
                 {/* Table Siswa */}
                 <Card>
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto w-full touch-pan-x">
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -586,7 +586,7 @@ export default function SiswaIndex({ siswas, filters, kelasList, angkatanList, c
                         Tahun Ajaran 2026/2027
                     </Badge>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto w-full touch-pan-x">
                     <Table>
                         <TableHeader>
                             <TableRow>

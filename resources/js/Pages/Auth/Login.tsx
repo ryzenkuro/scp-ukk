@@ -28,11 +28,11 @@ export default function Login({ status }: LoginProps) {
     };
 
     return (
-        <section className="bg-muted/40 min-h-screen flex items-center justify-center px-4 py-12">
+        <section className="bg-muted/40 min-h-screen flex items-center justify-center px-4 py-8 sm:py-12">
             <Head title="Masuk ke Sistem" />
 
             {/* Pure Raw Shadcnblocks Login1 Block */}
-            <div className="border border-border bg-card text-card-foreground flex w-full max-w-sm flex-col items-center gap-y-6 rounded-xl p-8 shadow-sm">
+            <div className="border border-border bg-card text-card-foreground flex w-full max-w-sm flex-col items-center gap-y-6 rounded-xl p-5 sm:p-8 shadow-sm">
                 <div className="flex flex-col items-center gap-y-2 text-center">
                     {/* Logo */}
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">

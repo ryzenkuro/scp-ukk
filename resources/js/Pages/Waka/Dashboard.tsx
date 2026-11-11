@@ -137,7 +137,7 @@ export default function Dashboard({
 
             <div className="space-y-6">
                 {/* Greeting Card with Integrated Academic Year & Advance Controller */}
-                <Card className="p-6">
+                <Card className="p-4 sm:p-6">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                         {/* Sisi Kiri: Sapaan Administrator */}
                         <div className="space-y-1">
@@ -153,7 +153,7 @@ export default function Dashboard({
                         </div>
 
                         {/* Sisi Kanan: Tahun Ajaran Aktif (Skala Besar & Kontras Jelas) */}
-                        <div className="flex items-center gap-4 rounded-xl border-2 border-border/80 bg-muted/30 p-4 shrink-0">
+                        <div className="flex items-center gap-4 rounded-xl border-2 border-border/80 bg-muted/30 p-3 sm:p-4 shrink-0">
                             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                                 <CalendarDays className="h-8 w-8" />
                             </div>
@@ -193,7 +193,7 @@ export default function Dashboard({
                 </Card>
 
                 {/* Unified Kontrol Putaran & Proteksi Jadwal Bar - Skala Besar & Ramah Pengguna Senior */}
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 rounded-2xl border-2 border-border bg-card p-5 md:p-6 shadow-sm">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 rounded-2xl border-2 border-border bg-card p-4 sm:p-6 shadow-sm">
                     {/* Sisi Putaran */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 flex-1">
                         <div className="flex items-center gap-4">
@@ -216,7 +216,7 @@ export default function Dashboard({
                             variant="outline"
                             onClick={toggleCycle}
                             disabled={cycleForm.processing}
-                            className="shrink-0 h-11 px-4 gap-2 text-sm font-semibold shadow-sm hover:bg-accent"
+                            className="w-full sm:w-auto shrink-0 h-11 px-4 gap-2 text-sm font-semibold shadow-sm hover:bg-accent"
                         >
                             <RefreshCw className={`h-4 w-4 ${cycleForm.processing ? 'animate-spin' : ''}`} />
                             Ganti ke Putaran {activeCycle === 1 ? 2 : 1}
@@ -251,7 +251,7 @@ export default function Dashboard({
                             variant={isLocked ? "outline" : "default"}
                             onClick={toggleLock}
                             disabled={lockForm.processing}
-                            className="shrink-0 h-11 px-4 gap-2 text-sm font-semibold shadow-sm"
+                            className="w-full sm:w-auto shrink-0 h-11 px-4 gap-2 text-sm font-semibold shadow-sm"
                         >
                             {isLocked ? (
                                 <>
@@ -327,46 +327,46 @@ export default function Dashboard({
                                     Rekapitulasi absensi presensi siswa harian seluruh rombel KBM
                                 </p>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                                 <Link href="/waka/jam-pelajaran">
                                     <Button variant="outline" size="sm" className="text-xs gap-1.5 h-8">
-                                        <Clock className="h-3.5 w-3.5" /> Konfigurasi Jam Belajar
+                                        <Clock className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Konfigurasi </span>Jam Belajar
                                     </Button>
                                 </Link>
                                 <Link href="/waka/laporan/presensi">
                                     <Button variant="outline" size="sm" className="text-xs gap-1.5 h-8 text-primary border-primary/30 hover:bg-primary/5">
-                                        Laporan Lengkap <ArrowRight className="h-3.5 w-3.5" />
+                                        Laporan<span className="hidden sm:inline"> Lengkap</span> <ArrowRight className="h-3.5 w-3.5" />
                                     </Button>
                                 </Link>
                             </div>
                         </CardHeader>
                         <CardContent className="pt-0">
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                <div className="flex items-center justify-between p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/20">
+                                <div className="flex items-center justify-between p-3 sm:p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/20">
                                     <div>
                                         <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300 block">Hadir</span>
-                                        <span className="text-2xl font-black text-emerald-900 dark:text-emerald-100">{attendanceSummary.hadir}</span>
+                                        <span className="text-xl sm:text-2xl font-black text-emerald-900 dark:text-emerald-100">{attendanceSummary.hadir}</span>
                                     </div>
                                     <span className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">Siswa</span>
                                 </div>
-                                <div className="flex items-center justify-between p-3.5 rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-950/20">
+                                <div className="flex items-center justify-between p-3 sm:p-3.5 rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-950/20">
                                     <div>
                                         <span className="text-xs font-semibold text-amber-800 dark:text-amber-300 block">Sakit</span>
-                                        <span className="text-2xl font-black text-amber-900 dark:text-amber-100">{attendanceSummary.sakit}</span>
+                                        <span className="text-xl sm:text-2xl font-black text-amber-900 dark:text-amber-100">{attendanceSummary.sakit}</span>
                                     </div>
                                     <span className="text-xs text-amber-700 dark:text-amber-400 font-medium">Siswa</span>
                                 </div>
-                                <div className="flex items-center justify-between p-3.5 rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20">
+                                <div className="flex items-center justify-between p-3 sm:p-3.5 rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20">
                                     <div>
                                         <span className="text-xs font-semibold text-blue-800 dark:text-blue-300 block">Izin</span>
-                                        <span className="text-2xl font-black text-blue-900 dark:text-blue-100">{attendanceSummary.izin}</span>
+                                        <span className="text-xl sm:text-2xl font-black text-blue-900 dark:text-blue-100">{attendanceSummary.izin}</span>
                                     </div>
                                     <span className="text-xs text-blue-700 dark:text-blue-400 font-medium">Siswa</span>
                                 </div>
-                                <div className="flex items-center justify-between p-3.5 rounded-xl border border-rose-200 dark:border-rose-900 bg-rose-50/50 dark:bg-rose-950/20">
+                                <div className="flex items-center justify-between p-3 sm:p-3.5 rounded-xl border border-rose-200 dark:border-rose-900 bg-rose-50/50 dark:bg-rose-950/20">
                                     <div>
                                         <span className="text-xs font-semibold text-rose-800 dark:text-rose-300 block">Alpa</span>
-                                        <span className="text-2xl font-black text-rose-900 dark:text-rose-100">{attendanceSummary.alpa}</span>
+                                        <span className="text-xl sm:text-2xl font-black text-rose-900 dark:text-rose-100">{attendanceSummary.alpa}</span>
                                     </div>
                                     <span className="text-xs text-rose-700 dark:text-rose-400 font-medium">Siswa</span>
                                 </div>
@@ -386,12 +386,12 @@ export default function Dashboard({
                                     Agenda KBM aktif pada Putaran Ke-{activeCycle}
                                 </p>
                             </div>
-                            <Link href="/waka/jadwal" className="text-xs font-medium text-foreground hover:underline flex items-center gap-1">
-                                Kelola Jadwal <ArrowRight className="h-3.5 w-3.5" />
+                            <Link href="/waka/jadwal" className="text-xs font-medium text-foreground hover:underline flex items-center gap-1 shrink-0">
+                                Kelola<span className="hidden sm:inline"> Jadwal</span> <ArrowRight className="h-3.5 w-3.5" />
                             </Link>
                         </CardHeader>
                         <CardContent className="p-0">
-                            <div className="overflow-x-auto">
+                            <div className="overflow-x-auto w-full touch-pan-x">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>

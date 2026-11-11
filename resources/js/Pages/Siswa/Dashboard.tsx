@@ -95,7 +95,7 @@ export default function SiswaDashboard({
 
             <div className="space-y-6">
                 {/* Kartu Profil Siswa */}
-                <Card className="p-6">
+                <Card className="p-4 sm:p-6">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
                             <span className={`text-xs font-semibold uppercase tracking-wider ${isOrangTua ? 'text-primary' : 'text-muted-foreground'}`}>
@@ -186,17 +186,17 @@ export default function SiswaDashboard({
                                 Pelajaran aktif kelas {student?.kelas} pada Siklus Putaran {config?.active_cycle ?? 1}.
                             </p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                             <Link href="/siswa/izin">
                                 <Button size="sm" variant="outline" className="gap-1.5 text-xs">
                                     <Send className="h-3.5 w-3.5" />
-                                    Ajukan Izin
+                                    Ajukan<span className="hidden sm:inline"> Izin</span>
                                 </Button>
                             </Link>
                             <Link href="/siswa/jadwal">
                                 <Button size="sm" className="gap-1.5 text-xs">
                                     <Calendar className="h-3.5 w-3.5" />
-                                    Jadwal Lengkap
+                                    Jadwal<span className="hidden sm:inline"> Lengkap</span>
                                 </Button>
                             </Link>
                         </div>
@@ -207,7 +207,7 @@ export default function SiswaDashboard({
                                 Tidak ada jadwal KBM untuk kelas {student?.kelas} pada hari {currentDay}.
                             </div>
                         ) : (
-                            <div className="overflow-x-auto">
+                            <div className="overflow-x-auto w-full touch-pan-x">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
@@ -270,7 +270,7 @@ export default function SiswaDashboard({
                                 Belum ada permohonan izin yang pernah diajukan.
                             </div>
                         ) : (
-                            <div className="overflow-x-auto">
+                            <div className="overflow-x-auto w-full touch-pan-x">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>

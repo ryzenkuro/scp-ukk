@@ -62,7 +62,7 @@ export default function Dashboard({ classNames = [], stats, config, recentLeaves
 
       <div className="space-y-6">
         {/* Header Greeting */}
-        <Card className="p-6">
+        <Card className="p-4 sm:p-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -210,7 +210,7 @@ export default function Dashboard({ classNames = [], stats, config, recentLeaves
             </Link>
           </div>
 
-          <div className="rounded-md border border-border">
+          <div className="rounded-md border border-border overflow-x-auto w-full touch-pan-x">
             <Table>
               <TableHeader>
                 <TableRow>

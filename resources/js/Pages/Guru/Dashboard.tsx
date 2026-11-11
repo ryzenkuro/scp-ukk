@@ -93,7 +93,7 @@ export default function GuruDashboard({
 
             <div className="space-y-6">
                 {/* Greeting Card */}
-                <Card className="p-6">
+                <Card className="p-4 sm:p-6">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
                             <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -110,7 +110,7 @@ export default function GuruDashboard({
                             <a href="/guru/jadwal/export-pdf" target="_blank" rel="noreferrer">
                                 <Button variant="outline" size="sm" className="gap-1.5 text-xs">
                                     <Printer className="h-4 w-4" />
-                                    <span>Cetak Jadwal (A4)</span>
+                                    <span>Cetak<span className="hidden sm:inline"> Jadwal (A4)</span></span>
                                 </Button>
                             </a>
                             <Badge variant="default" className="text-xs">
@@ -184,7 +184,7 @@ export default function GuruDashboard({
                                 Tidak ada jadwal mengajar untuk Anda pada hari {currentDay} (Putaran {config?.active_cycle ?? 1}).
                             </div>
                         ) : (
-                            <div className="overflow-x-auto">
+                            <div className="overflow-x-auto w-full touch-pan-x">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
@@ -258,7 +258,7 @@ export default function GuruDashboard({
                                 Belum ada jurnal KBM yang pernah diisi. Klik tombol "Isi Jurnal KBM" untuk memulai.
                             </div>
                         ) : (
-                            <div className="overflow-x-auto">
+                            <div className="overflow-x-auto w-full touch-pan-x">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>

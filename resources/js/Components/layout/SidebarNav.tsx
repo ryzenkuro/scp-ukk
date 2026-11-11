@@ -13,7 +13,8 @@ import {
   ChevronRight,
   BookOpen,
   ClipboardList,
-  Clock
+  Clock,
+  X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -32,7 +33,12 @@ export type NavGroupData = {
   items: NavItemData[];
 };
 
-export function SidebarNav() {
+export interface SidebarNavProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export function SidebarNav({ isOpen = false, onClose }: SidebarNavProps = {}) {
   const { auth, url } = usePage<any>().props;
   const user = auth?.user;
   const roleName = user?.role?.name || (user?.role_id === 1 ? 'waka' : user?.role_id === 2 ? 'guru' : user?.role_id === 3 ? 'siswa' : 'user');
@@ -370,16 +376,32 @@ export function SidebarNav() {
   }
 
   return (
-    <div className="flex h-full w-64 flex-col border-r border-border bg-card text-card-foreground">
+    <aside
+      className={cn(
+        "fixed inset-y-0 left-0 z-50 flex h-full w-64 flex-col border-r border-border bg-card text-card-foreground transition-transform duration-200 ease-in-out md:static md:translate-x-0 md:z-auto",
+        isOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
+      )}
+    >
       {/* Brand Header */}
-      <div className="flex h-16 items-center gap-3 border-b border-border px-6">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary font-bold text-primary-foreground shadow-sm">
-          SP
+      <div className="flex h-16 items-center justify-between border-b border-border px-6">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary font-bold text-primary-foreground shadow-sm">
+            SP
+          </div>
+          <div>
+            <div className="text-sm font-bold tracking-tight">SMK N 1 BANTUL</div>
+            <div className="text-[11px] font-medium text-muted-foreground">Presensi & Agenda UKK</div>
+          </div>
         </div>
-        <div>
-          <div className="text-sm font-bold tracking-tight">SMK N 1 BANTUL</div>
-          <div className="text-[11px] font-medium text-muted-foreground">Presensi & Agenda UKK</div>
-        </div>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground md:hidden"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        )}
       </div>
 
       {/* Nav List */}
@@ -423,6 +445,7 @@ export function SidebarNav() {
                             <Link
                               key={cIdx}
                               href={child.href}
+                              onClick={() => onClose?.()}
                               className={cn(
                                 "block rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground text-muted-foreground",
                                 child.active && "bg-accent text-accent-foreground font-semibold"
@@ -441,6 +464,7 @@ export function SidebarNav() {
                   <Link
                     key={item.id}
                     href={item.href}
+                    onClick={() => onClose?.()}
                     className={cn(
                       "flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground text-muted-foreground",
                       item.active && "bg-accent text-accent-foreground font-semibold"
@@ -466,7 +490,7 @@ export function SidebarNav() {
       {/* User Card Bottom */}
       <div className="border-t border-border p-4">
         <div className="flex items-center justify-between">
-          <Link href="/profile" className="flex items-center gap-3 overflow-hidden">
+          <Link href="/profile" onClick={() => onClose?.()} className="flex items-center gap-3 overflow-hidden">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted font-semibold text-muted-foreground">
               {user?.fullname?.[0] || user?.username?.[0] || 'U'}
             </div>
@@ -486,6 +510,6 @@ export function SidebarNav() {
           </Link>
         </div>
       </div>
-    </div>
+    </aside>
   );
 }
