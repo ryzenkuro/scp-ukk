@@ -88,3 +88,9 @@ jobs:
 
             # 6. Jalankan migrasi database produksi secara otomatis
             kubectl exec -n ukk-production deployment/laravel-app -- php artisan migrate --force
+
+            # 7. Kalibrasi dan sinkronisasi Master Data resmi sekolah secara otomatis
+            kubectl exec -n ukk-production deployment/laravel-app -- php artisan app:sync-master-data
+
+            # 8. Segarkan cache aplikasi agar data dan konfigurasi terbaru langsung aktif
+            kubectl exec -n ukk-production deployment/laravel-app -- php artisan optimize:clear
