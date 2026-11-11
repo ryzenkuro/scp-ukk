@@ -1,9 +1,9 @@
-# School Class Progress (SCP) — Web Platform & REST API
+# School Class Progress (SCP) 
 
 > **Sistem Informasi Manajemen Pembelajaran Blok Teaching Factory (TeFa), Presensi & Jurnal Mengajar Terintegrasi**  
 > Disiapkan untuk **Uji Kompetensi Keahlian (UKK) Rekayasa Perangkat Lunak (RPL) Paket 3 Tahun 2026**  
 > Pengembang: **Faiz Baraka Putra** — **SMK Negeri 1 Bantul**  
-> Versi Dokumen SRS: **1.0 (10 Oktober 2026)**
+
 
 ---
 
