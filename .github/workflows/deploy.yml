@@ -86,11 +86,8 @@ jobs:
             # 5. Tunggu proses deployment sampai status Ready (1/1 Running)
             kubectl rollout status deployment/laravel-app -n ukk-production --timeout=180s
 
-            # 6. Jalankan migrasi database produksi secara otomatis
+            # 6. Jalankan migrasi database produksi secara otomatis (aman, tidak menghapus data)
             kubectl exec -n ukk-production deployment/laravel-app -- php artisan migrate --force
 
-            # 7. Kalibrasi dan sinkronisasi Master Data resmi sekolah secara otomatis
-            kubectl exec -n ukk-production deployment/laravel-app -- php artisan app:sync-master-data
-
-            # 8. Segarkan cache aplikasi agar data dan konfigurasi terbaru langsung aktif
+            # 7. Segarkan cache aplikasi agar data dan konfigurasi terbaru langsung aktif
             kubectl exec -n ukk-production deployment/laravel-app -- php artisan optimize:clear

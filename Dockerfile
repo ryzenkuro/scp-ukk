@@ -70,11 +70,17 @@ COPY --from=frontend /app/public/build ./public/build
 ENV COMPOSER_ALLOW_SUPERUSER=1
 RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
 
-# Set permissions for Laravel storage and cache
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
-    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache \
-    && mkdir -p /var/log/nginx /var/log/supervisor /run/nginx \
-    && chown -R www-data:www-data /var/log/nginx /run/nginx
+# Set permissions for Laravel storage, cache, and Nginx temporary directories
+RUN mkdir -p /var/lib/nginx/tmp/client_body \
+             /var/lib/nginx/tmp/proxy \
+             /var/lib/nginx/tmp/fastcgi \
+             /var/lib/nginx/tmp/uwsgi \
+             /var/lib/nginx/tmp/scgi \
+             /var/log/nginx \
+             /var/log/supervisor \
+             /run/nginx \
+    && chown -R www-data:www-data /var/lib/nginx /var/log/nginx /run/nginx /var/www/html/storage /var/www/html/bootstrap/cache \
+    && chmod -R 775 /var/lib/nginx /var/www/html/storage /var/www/html/bootstrap/cache
 
 EXPOSE 80
 
