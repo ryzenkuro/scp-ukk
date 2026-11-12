@@ -35,12 +35,12 @@ class KesiswaanPortalController extends Controller
         $approvedIzin = LeaveRequest::where('status', 'approved')->count();
         $rejectedIzin = LeaveRequest::where('status', 'rejected')->count();
 
-        // Rekapitulasi Presensi Hari Ini (atau total presensi terkini)
+        // Rekapitulasi Presensi Hari Ini (distinct siswa agar tidak dobel sesi)
         $todayAttendances = Attendance::whereDate('date', now()->toDateString())->get();
-        $todayHadir = $todayAttendances->where('status', 'hadir')->count();
-        $todaySakit = $todayAttendances->where('status', 'sakit')->count();
-        $todayIzin = $todayAttendances->where('status', 'izin')->count();
-        $todayAlpa = $todayAttendances->where('status', 'alpa')->count();
+        $todayHadir = $todayAttendances->where('status', 'hadir')->pluck('student_id')->unique()->count();
+        $todaySakit = $todayAttendances->where('status', 'sakit')->pluck('student_id')->unique()->count();
+        $todayIzin = $todayAttendances->where('status', 'izin')->pluck('student_id')->unique()->count();
+        $todayAlpa = $todayAttendances->where('status', 'alpa')->pluck('student_id')->unique()->count();
 
         // Jadwal mengajar jika petugas kesiswaan juga mengajar KBM
         $jadwals = Schedule::with(['schoolClass', 'room'])
@@ -88,8 +88,15 @@ class KesiswaanPortalController extends Controller
 
         $kelasList = SchoolClass::orderBy('name')->pluck('name')->toArray();
         $selectedClass = $request->input('kelas', $kelasList[0] ?? '');
-        $startDate = $request->input('start_date');
-        $endDate = $request->input('end_date');
+        
+        // Default ke bulan berjalan jika tidak ada filter parameter yang dikirim
+        $startDate = $request->has('start_date')
+            ? $request->input('start_date')
+            : now()->startOfMonth()->toDateString();
+        $endDate = $request->has('end_date')
+            ? $request->input('end_date')
+            : now()->endOfMonth()->toDateString();
+
         if ($startDate && $endDate && $endDate < $startDate) {
             $endDate = $startDate;
         }
@@ -160,7 +167,22 @@ class KesiswaanPortalController extends Controller
         }
 
         $totalSesi = $totalHadir + $totalSakit + $totalIzin + $totalAlpa;
-        $avgAttendance = $totalSesi > 0 ? round(($totalHadir / $totalSesi) * 100, 1) : 100.0;
+        if ($totalSesi === 0 || ($totalHadir === 0 && $totalAlpa === 0)) {
+            $avgAttendance = 100.0;
+        } else {
+            $avgAttendance = round(($totalHadir / $totalSesi) * 100, 1);
+        }
+
+        $isSingleDay = ($startDate && $endDate && $startDate === $endDate);
+
+        // Headcount siswa unik jika mode 1 hari
+        $headcountHadir = $attendances->where('status', 'hadir')->pluck('student_id')->unique()->count();
+        $headcountSakit = $attendances->where('status', 'sakit')->pluck('student_id')->unique()->count();
+        $headcountIzin = $attendances->where('status', 'izin')->pluck('student_id')->unique()->count();
+        $headcountAlpa = $attendances->where('status', 'alpa')->pluck('student_id')->unique()->count();
+
+        // Total sesi pertemuan KBM yang terlaksana (berdasarkan jurnal)
+        $distinctSessions = $attendances->pluck('journal_id')->filter()->unique()->count();
 
         return Inertia::render('Kesiswaan/Presensi', [
             'kelasList' => $kelasList,
@@ -168,6 +190,14 @@ class KesiswaanPortalController extends Controller
             'rekapData' => $rekapData,
             'summary' => [
                 'total_students' => count($students),
+                'is_single_day' => $isSingleDay,
+                'total_sessions' => $distinctSessions,
+                // Headcount siswa (untuk mode 1 hari)
+                'headcount_hadir' => $headcountHadir,
+                'headcount_sakit' => $headcountSakit,
+                'headcount_izin' => $headcountIzin,
+                'headcount_alpa' => $headcountAlpa,
+                // Akumulasi sesi KBM (untuk mode periode)
                 'total_hadir' => $totalHadir,
                 'total_sakit' => $totalSakit,
                 'total_izin' => $totalIzin,

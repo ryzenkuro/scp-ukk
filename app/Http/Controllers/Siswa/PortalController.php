@@ -38,11 +38,16 @@ class PortalController extends Controller
         ];
         $currentDay = $dayMap[date('l')] ?? 'Senin';
 
-        // Pastikan izin yang disetujui tersinkron ke rekapan pribadi siswa
+        // Pastikan izin yang disetujui tersinkron ke rekapan pribadi siswa (tanpa presensi masa depan)
         AttendanceSyncService::syncAllApprovedLeaves($student?->id);
 
-        // Rekap kehadiran siswa pribadi
-        $attendances = Attendance::where('student_id', $student?->id)->get();
+        // Rekap kehadiran siswa pribadi hanya untuk hari yang sudah/sedang berjalan atau memiliki journal_id
+        $attendances = Attendance::where('student_id', $student?->id)
+            ->where(function ($q) {
+                $q->whereNotNull('journal_id')
+                  ->orWhereDate('date', '<=', now()->toDateString());
+            })
+            ->get();
         $hadir = $attendances->where('status', 'hadir')->count();
         $sakit = $attendances->where('status', 'sakit')->count();
         $izin = $attendances->where('status', 'izin')->count();

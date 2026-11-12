@@ -22,6 +22,7 @@ import {
     Users,
     CheckCircle2
 } from 'lucide-react';
+import { formatDateIndo } from '@/lib/utils';
 
 interface RekapItem {
     id: number;
@@ -47,6 +48,12 @@ interface PresensiReportProps {
     rekapData: RekapItem[];
     summary: {
         total_students: number;
+        is_single_day?: boolean;
+        total_sessions?: number;
+        headcount_hadir?: number;
+        headcount_sakit?: number;
+        headcount_izin?: number;
+        headcount_alpa?: number;
         total_hadir: number;
         total_sakit: number;
         total_izin: number;
@@ -82,9 +89,52 @@ export default function LaporanPresensi({
         }, { preserveState: true });
     };
 
+    const applyPreset = (preset: 'today' | 'this_month' | 'semester' | 'all') => {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        const todayStr = `${y}-${m}-${d}`;
+
+        let s = '';
+        let e = '';
+
+        if (preset === 'today') {
+            s = todayStr;
+            e = todayStr;
+        } else if (preset === 'this_month') {
+            const lastDay = new Date(y, now.getMonth() + 1, 0).getDate();
+            s = `${y}-${m}-01`;
+            e = `${y}-${m}-${String(lastDay).padStart(2, '0')}`;
+        } else if (preset === 'semester') {
+            const monthNum = now.getMonth() + 1;
+            if (monthNum >= 7) {
+                s = `${y}-07-01`;
+                e = `${y}-12-31`;
+            } else {
+                s = `${y}-01-01`;
+                e = `${y}-06-30`;
+            }
+        } else if (preset === 'all') {
+            s = '';
+            e = '';
+        }
+
+        setStartDate(s);
+        setEndDate(e);
+
+        router.get('/waka/laporan/presensi', {
+            kelas: currentKelas,
+            start_date: s,
+            end_date: e,
+        }, { preserveState: true });
+    };
+
     const handlePrint = () => {
         window.print();
     };
+
+    const isSingleDay = summary.is_single_day || (startDate && endDate && startDate === endDate);
 
     return (
         <AppLayout title="Laporan Rekapitulasi Presensi">
@@ -108,8 +158,49 @@ export default function LaporanPresensi({
                         </Button>
                     </CardHeader>
 
-                    <CardContent className="pt-0">
-                        <form onSubmit={handleFilterSubmit} className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                    <CardContent className="pt-0 space-y-3">
+                        {/* Tombol Pintas Periode */}
+                        <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-border/50">
+                            <span className="text-xs font-semibold text-muted-foreground mr-1">Filter Cepat:</span>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={startDate === endDate && startDate ? "default" : "outline"}
+                                onClick={() => applyPreset('today')}
+                                className="h-7 text-xs px-3 rounded-full"
+                            >
+                                Hari Ini
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={startDate && endDate && startDate !== endDate && !startDate.endsWith('-07-01') && !startDate.endsWith('-01-01') ? "default" : "outline"}
+                                onClick={() => applyPreset('this_month')}
+                                className="h-7 text-xs px-3 rounded-full"
+                            >
+                                Bulan Ini
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={startDate && (startDate.endsWith('-07-01') || startDate.endsWith('-01-01')) ? "default" : "outline"}
+                                onClick={() => applyPreset('semester')}
+                                className="h-7 text-xs px-3 rounded-full"
+                            >
+                                Semester Ini
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={!startDate && !endDate ? "default" : "outline"}
+                                onClick={() => applyPreset('all')}
+                                className="h-7 text-xs px-3 rounded-full"
+                            >
+                                Semua Riwayat
+                            </Button>
+                        </div>
+
+                        <form onSubmit={handleFilterSubmit} className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-1">
                             <div>
                                 <Label className="text-xs text-muted-foreground mb-1 block">Pilih Kelas *</Label>
                                 <select
@@ -188,32 +279,88 @@ export default function LaporanPresensi({
                         </h3>
                         <p className="text-xs text-muted-foreground mt-0.5">
                             Kelas: <strong>{selectedKelas}</strong> &bull; Tahun Ajaran: <strong>{config.academic_year}</strong> &bull; Siklus Putaran {config.active_cycle}
+                            {startDate && endDate ? (
+                                startDate === endDate ? (
+                                    <span> &bull; Tanggal: <strong>{formatDateIndo(startDate)}</strong> (Harian)</span>
+                                ) : (
+                                    <span> &bull; Periode: <strong>{formatDateIndo(startDate)} s.d. {formatDateIndo(endDate)}</strong></span>
+                                )
+                            ) : (
+                                <span> &bull; Periode: <strong>Semua Riwayat Terlaksana</strong></span>
+                            )}
                         </p>
                     </div>
 
-                    {/* Ringkasan Angka Rekapitulasi */}
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
-                        <div className="border border-border rounded-lg p-3 text-center bg-muted/20">
-                            <span className="text-[11px] text-muted-foreground block font-medium">Total Siswa</span>
-                            <span className="text-lg font-bold">{summary.total_students}</span>
+                    {/* Ringkasan Angka Rekapitulasi (Adaptif: Mode 1 Hari vs Mode Periode Sesi KBM) */}
+                    {isSingleDay ? (
+                        /* Mode 1 Hari: Menghitung Headcount Siswa (Hadir + Izin + Sakit + Alpa = Total Siswa) */
+                        <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 mb-6">
+                            <div className="border border-border rounded-lg p-3 text-center bg-muted/20">
+                                <span className="text-[11px] text-muted-foreground block font-medium">Total Siswa</span>
+                                <span className="text-lg font-bold text-foreground block mt-0.5">{summary.total_students}</span>
+                                <span className="text-[10px] text-muted-foreground block">Kelas {selectedKelas}</span>
+                            </div>
+                            <div className="border border-border rounded-lg p-3 text-center bg-muted/20">
+                                <span className="text-[11px] text-muted-foreground block font-medium">Siswa Hadir (H)</span>
+                                <span className="text-lg font-bold text-foreground block mt-0.5">{summary.headcount_hadir ?? summary.total_hadir}</span>
+                                <span className="text-[10px] text-muted-foreground block">Siswa Mengikuti</span>
+                            </div>
+                            <div className="border border-border rounded-lg p-3 text-center bg-muted/20">
+                                <span className="text-[11px] text-muted-foreground block font-medium">Siswa Sakit (S)</span>
+                                <span className="text-lg font-bold text-foreground block mt-0.5">{summary.headcount_sakit ?? summary.total_sakit}</span>
+                                <span className="text-[10px] text-muted-foreground block">Surat Dokter</span>
+                            </div>
+                            <div className="border border-border rounded-lg p-3 text-center bg-muted/20">
+                                <span className="text-[11px] text-muted-foreground block font-medium">Siswa Izin (I)</span>
+                                <span className="text-lg font-bold text-foreground block mt-0.5">{summary.headcount_izin ?? summary.total_izin}</span>
+                                <span className="text-[10px] text-muted-foreground block">Izin Disetujui</span>
+                            </div>
+                            <div className="border border-border rounded-lg p-3 text-center bg-muted/20">
+                                <span className="text-[11px] text-muted-foreground block font-medium">Siswa Alpa (A)</span>
+                                <span className="text-lg font-bold text-foreground block mt-0.5">{summary.headcount_alpa ?? summary.total_alpa}</span>
+                                <span className="text-[10px] text-muted-foreground block">Tanpa Keterangan</span>
+                            </div>
+                            <div className="border border-border rounded-lg p-3 text-center bg-muted/20 col-span-2 sm:col-span-1">
+                                <span className="text-[11px] text-muted-foreground block font-medium">Kehadiran Kelas</span>
+                                <span className="text-lg font-bold text-foreground block mt-0.5">{summary.class_attendance_rate}%</span>
+                                <span className="text-[10px] text-muted-foreground block">Tingkat Disiplin</span>
+                            </div>
                         </div>
-                        <div className="border border-border rounded-lg p-3 text-center bg-muted/20">
-                            <span className="text-[11px] text-muted-foreground block font-medium">Total Hadir (H)</span>
-                            <span className="text-lg font-bold text-emerald-600">{summary.total_hadir}</span>
+                    ) : (
+                        /* Mode Rentang Periode (Bulan / Semester): Menghitung Evaluasi KBM Rombel */
+                        <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 mb-6">
+                            <div className="border border-border rounded-lg p-3 text-center bg-muted/20">
+                                <span className="text-[11px] text-muted-foreground block font-medium">Total Siswa</span>
+                                <span className="text-lg font-bold text-foreground block mt-0.5">{summary.total_students}</span>
+                                <span className="text-[10px] text-muted-foreground block">Siswa Terdaftar</span>
+                            </div>
+                            <div className="border border-border rounded-lg p-3 text-center bg-muted/20">
+                                <span className="text-[11px] text-muted-foreground block font-medium">Pertemuan KBM</span>
+                                <span className="text-lg font-bold text-foreground block mt-0.5">{summary.total_sessions ?? 0}</span>
+                                <span className="text-[10px] text-muted-foreground block">Sesi Terlaksana</span>
+                            </div>
+                            <div className="border border-border rounded-lg p-3 text-center bg-muted/20">
+                                <span className="text-[11px] text-muted-foreground block font-medium">Total Sakit (S)</span>
+                                <span className="text-lg font-bold text-foreground block mt-0.5">{summary.total_sakit}</span>
+                                <span className="text-[10px] text-muted-foreground block">Sesi / Hari</span>
+                            </div>
+                            <div className="border border-border rounded-lg p-3 text-center bg-muted/20">
+                                <span className="text-[11px] text-muted-foreground block font-medium">Total Izin (I)</span>
+                                <span className="text-lg font-bold text-foreground block mt-0.5">{summary.total_izin}</span>
+                                <span className="text-[10px] text-muted-foreground block">Sesi / Hari</span>
+                            </div>
+                            <div className="border border-border rounded-lg p-3 text-center bg-muted/20">
+                                <span className="text-[11px] text-muted-foreground block font-medium">Total Alpa (A)</span>
+                                <span className="text-lg font-bold text-foreground block mt-0.5">{summary.total_alpa}</span>
+                                <span className="text-[10px] text-muted-foreground block">Sesi / Hari</span>
+                            </div>
+                            <div className="border border-border rounded-lg p-3 text-center bg-muted/20 col-span-2 sm:col-span-1">
+                                <span className="text-[11px] text-muted-foreground block font-medium">Rata-rata Kehadiran</span>
+                                <span className="text-lg font-bold text-foreground block mt-0.5">{summary.class_attendance_rate}%</span>
+                                <span className="text-[10px] text-muted-foreground block">Kehadiran Rombel</span>
+                            </div>
                         </div>
-                        <div className="border border-border rounded-lg p-3 text-center bg-muted/20">
-                            <span className="text-[11px] text-muted-foreground block font-medium">Total Sakit (S)</span>
-                            <span className="text-lg font-bold text-amber-600">{summary.total_sakit}</span>
-                        </div>
-                        <div className="border border-border rounded-lg p-3 text-center bg-muted/20">
-                            <span className="text-[11px] text-muted-foreground block font-medium">Total Izin (I)</span>
-                            <span className="text-lg font-bold text-blue-600">{summary.total_izin}</span>
-                        </div>
-                        <div className="border border-border rounded-lg p-3 text-center bg-muted/20 col-span-2 sm:col-span-1">
-                            <span className="text-[11px] text-muted-foreground block font-medium">Kehadiran Kelas</span>
-                            <span className="text-lg font-bold text-foreground">{summary.class_attendance_rate}%</span>
-                        </div>
-                    </div>
+                    )}
 
                     {/* Tabel Rekapitulasi Siswa */}
                     <div className="overflow-x-auto mb-8">

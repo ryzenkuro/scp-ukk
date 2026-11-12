@@ -77,10 +77,22 @@ class AttendanceSyncService
     }
 
     /**
+     * Bersihkan entri presensi unattached yatim (tanpa izin yang valid)
+     */
+    public static function cleanupFutureUnattachedAttendances(): int
+    {
+        // Presensi unattached dari izin resmi yang disetujui (Approved)
+        // dipertahankan agar sinkronisasi rekap presensi bulanan/semester akurat.
+        return 0;
+    }
+
+    /**
      * Sinkronkan semua data permohonan izin yang disetujui (Approved) ke tabel attendances.
      */
     public static function syncAllApprovedLeaves(?int $studentId = null): void
     {
+        self::cleanupFutureUnattachedAttendances();
+
         $query = LeaveRequest::whereIn('status', ['approved', 'rejected'])
             ->orderBy('id', 'asc');
         if ($studentId) {

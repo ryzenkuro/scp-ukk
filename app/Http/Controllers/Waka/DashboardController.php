@@ -50,13 +50,13 @@ class DashboardController extends Controller
             ->take(5)
             ->get();
 
-        // Ringkasan presensi hari ini
+        // Ringkasan presensi hari ini (distinct siswa agar mencerminkan headcount siswa harian)
         $todayDate = now()->toDateString();
         $attendanceSummary = [
-            'hadir' => Attendance::whereDate('date', $todayDate)->where('status', 'hadir')->count(),
-            'sakit' => Attendance::whereDate('date', $todayDate)->where('status', 'sakit')->count(),
-            'izin' => Attendance::whereDate('date', $todayDate)->where('status', 'izin')->count(),
-            'alpa' => Attendance::whereDate('date', $todayDate)->where('status', 'alpa')->count(),
+            'hadir' => Attendance::whereDate('date', $todayDate)->where('status', 'hadir')->distinct('student_id')->count('student_id'),
+            'sakit' => Attendance::whereDate('date', $todayDate)->where('status', 'sakit')->distinct('student_id')->count('student_id'),
+            'izin' => Attendance::whereDate('date', $todayDate)->where('status', 'izin')->distinct('student_id')->count('student_id'),
+            'alpa' => Attendance::whereDate('date', $todayDate)->where('status', 'alpa')->distinct('student_id')->count('student_id'),
         ];
 
         return Inertia::render('Waka/Dashboard', [

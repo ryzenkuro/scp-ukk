@@ -46,6 +46,12 @@ interface PresensiProps {
   rekapData: RekapItem[];
   summary: {
     total_students: number;
+    is_single_day?: boolean;
+    total_sessions?: number;
+    headcount_hadir?: number;
+    headcount_sakit?: number;
+    headcount_izin?: number;
+    headcount_alpa?: number;
     total_hadir: number;
     total_sakit: number;
     total_izin: number;
@@ -72,9 +78,51 @@ export default function Presensi({
   const [endDate, setEndDate] = useState(filters.end_date || '');
   const [search, setSearch] = useState(filters.search || '');
 
+  const applyPreset = (preset: 'today' | 'this_month' | 'semester' | 'all') => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const todayStr = `${y}-${m}-${d}`;
+
+    let s = '';
+    let e = '';
+
+    if (preset === 'today') {
+      s = todayStr;
+      e = todayStr;
+    } else if (preset === 'this_month') {
+      const lastDay = new Date(y, now.getMonth() + 1, 0).getDate();
+      s = `${y}-${m}-01`;
+      e = `${y}-${m}-${String(lastDay).padStart(2, '0')}`;
+    } else if (preset === 'semester') {
+      const monthNum = now.getMonth() + 1;
+      if (monthNum >= 7) {
+        s = `${y}-07-01`;
+        e = `${y}-12-31`;
+      } else {
+        s = `${y}-01-01`;
+        e = `${y}-06-30`;
+      }
+    } else if (preset === 'all') {
+      s = '';
+      e = '';
+    }
+
+    setStartDate(s);
+    setEndDate(e);
+
+    router.get('/kesiswaan/presensi', {
+      kelas,
+      start_date: s,
+      end_date: e,
+      search,
+    }, { preserveState: true });
+  };
+
   const handleFilter = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    router.get('/bk/presensi', {
+    router.get('/kesiswaan/presensi', {
       kelas,
       start_date: startDate,
       end_date: endDate,
@@ -84,7 +132,7 @@ export default function Presensi({
 
   const handleClassChange = (newClass: string) => {
     setKelas(newClass);
-    router.get('/bk/presensi', {
+    router.get('/kesiswaan/presensi', {
       kelas: newClass,
       start_date: startDate,
       end_date: endDate,
@@ -95,6 +143,8 @@ export default function Presensi({
   const handlePrint = () => {
     window.print();
   };
+
+  const isSingleDay = summary.is_single_day || (startDate && endDate && startDate === endDate);
 
   return (
     <AppLayout title="Rekap Presensi Rombel">
@@ -123,49 +173,49 @@ export default function Presensi({
           </Button>
         </div>
 
-        {/* Summary Metric Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <Card className="p-3 text-center">
-            <span className="text-xs text-muted-foreground block">Total Siswa</span>
-            <span className="text-xl font-bold text-foreground mt-1 block">
-              {summary.total_students}
-            </span>
-          </Card>
-          <Card className="p-3 text-center border-emerald-500/20 bg-emerald-500/5">
-            <span className="text-xs text-emerald-600 block font-medium">Total Hadir (H)</span>
-            <span className="text-xl font-bold text-emerald-600 mt-1 block">
-              {summary.total_hadir}
-            </span>
-          </Card>
-          <Card className="p-3 text-center border-amber-500/20 bg-amber-500/5">
-            <span className="text-xs text-amber-600 block font-medium">Total Sakit (S)</span>
-            <span className="text-xl font-bold text-amber-600 mt-1 block">
-              {summary.total_sakit}
-            </span>
-          </Card>
-          <Card className="p-3 text-center border-blue-500/20 bg-blue-500/5">
-            <span className="text-xs text-blue-600 block font-medium">Total Izin (I)</span>
-            <span className="text-xl font-bold text-blue-600 mt-1 block">
-              {summary.total_izin}
-            </span>
-          </Card>
-          <Card className="p-3 text-center border-destructive/20 bg-destructive/5">
-            <span className="text-xs text-destructive block font-medium">Total Alpa (A)</span>
-            <span className="text-xl font-bold text-destructive mt-1 block">
-              {summary.total_alpa}
-            </span>
-          </Card>
-          <Card className="p-3 text-center border-primary/20 bg-primary/5">
-            <span className="text-xs text-primary block font-medium">Rata-rata Kehadiran</span>
-            <span className="text-xl font-bold text-primary mt-1 block">
-              {summary.avg_attendance}%
-            </span>
-          </Card>
-        </div>
+        {/* Filter Toolbar & Presets */}
+        <Card className="p-4 space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-muted-foreground mr-1">Filter Cepat:</span>
+            <Button
+              type="button"
+              size="sm"
+              variant={startDate === endDate && startDate ? "default" : "outline"}
+              onClick={() => applyPreset('today')}
+              className="h-7 text-xs px-3 rounded-full"
+            >
+              Hari Ini
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={startDate && endDate && startDate !== endDate && !startDate.endsWith('-07-01') && !startDate.endsWith('-01-01') ? "default" : "outline"}
+              onClick={() => applyPreset('this_month')}
+              className="h-7 text-xs px-3 rounded-full"
+            >
+              Bulan Ini
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={startDate && (startDate.endsWith('-07-01') || startDate.endsWith('-01-01')) ? "default" : "outline"}
+              onClick={() => applyPreset('semester')}
+              className="h-7 text-xs px-3 rounded-full"
+            >
+              Semester Ini
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={!startDate && !endDate ? "default" : "outline"}
+              onClick={() => applyPreset('all')}
+              className="h-7 text-xs px-3 rounded-full"
+            >
+              Semua Riwayat
+            </Button>
+          </div>
 
-        {/* Filter Toolbar */}
-        <Card className="p-4">
-          <form onSubmit={handleFilter} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+          <form onSubmit={handleFilter} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-1 border-t border-border/50">
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1">
                 Pilih Rombel / Kelas
@@ -244,6 +294,95 @@ export default function Presensi({
             </div>
           </form>
         </Card>
+
+        {/* Summary Metric Cards (Adaptif: Mode 1 Hari vs Mode Periode KBM) */}
+        {isSingleDay ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <Card className="p-3 text-center bg-muted/20">
+              <span className="text-[11px] text-muted-foreground block font-medium">Total Siswa</span>
+              <span className="text-xl font-bold text-foreground mt-0.5 block">{summary.total_students}</span>
+              <span className="text-[10px] text-muted-foreground block">Kelas {selectedClass}</span>
+            </Card>
+            <Card className="p-3 text-center bg-muted/20">
+              <span className="text-[11px] text-muted-foreground block font-medium">Siswa Hadir (H)</span>
+              <span className="text-xl font-bold text-foreground mt-0.5 block">
+                {summary.headcount_hadir ?? summary.total_hadir}
+              </span>
+              <span className="text-[10px] text-muted-foreground block">Siswa Mengikuti</span>
+            </Card>
+            <Card className="p-3 text-center bg-muted/20">
+              <span className="text-[11px] text-muted-foreground block font-medium">Siswa Sakit (S)</span>
+              <span className="text-xl font-bold text-foreground mt-0.5 block">
+                {summary.headcount_sakit ?? summary.total_sakit}
+              </span>
+              <span className="text-[10px] text-muted-foreground block">Surat Dokter</span>
+            </Card>
+            <Card className="p-3 text-center bg-muted/20">
+              <span className="text-[11px] text-muted-foreground block font-medium">Siswa Izin (I)</span>
+              <span className="text-xl font-bold text-foreground mt-0.5 block">
+                {summary.headcount_izin ?? summary.total_izin}
+              </span>
+              <span className="text-[10px] text-muted-foreground block">Izin Disetujui</span>
+            </Card>
+            <Card className="p-3 text-center bg-muted/20">
+              <span className="text-[11px] text-muted-foreground block font-medium">Siswa Alpa (A)</span>
+              <span className="text-xl font-bold text-foreground mt-0.5 block">
+                {summary.headcount_alpa ?? summary.total_alpa}
+              </span>
+              <span className="text-[10px] text-muted-foreground block">Tanpa Keterangan</span>
+            </Card>
+            <Card className="p-3 text-center bg-muted/20">
+              <span className="text-[11px] text-muted-foreground block font-medium">Kehadiran Kelas</span>
+              <span className="text-xl font-bold text-foreground mt-0.5 block">
+                {summary.avg_attendance}%
+              </span>
+              <span className="text-[10px] text-muted-foreground block">Tingkat Disiplin</span>
+            </Card>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <Card className="p-3 text-center bg-muted/20">
+              <span className="text-[11px] text-muted-foreground block font-medium">Total Siswa</span>
+              <span className="text-xl font-bold text-foreground mt-0.5 block">{summary.total_students}</span>
+              <span className="text-[10px] text-muted-foreground block">Siswa Terdaftar</span>
+            </Card>
+            <Card className="p-3 text-center bg-muted/20">
+              <span className="text-[11px] text-muted-foreground block font-medium">Pertemuan KBM</span>
+              <span className="text-xl font-bold text-foreground mt-0.5 block">
+                {summary.total_sessions ?? 0}
+              </span>
+              <span className="text-[10px] text-muted-foreground block">Sesi Terlaksana</span>
+            </Card>
+            <Card className="p-3 text-center bg-muted/20">
+              <span className="text-[11px] text-muted-foreground block font-medium">Total Sakit (S)</span>
+              <span className="text-xl font-bold text-foreground mt-0.5 block">
+                {summary.total_sakit}
+              </span>
+              <span className="text-[10px] text-muted-foreground block">Sesi / Hari</span>
+            </Card>
+            <Card className="p-3 text-center bg-muted/20">
+              <span className="text-[11px] text-muted-foreground block font-medium">Total Izin (I)</span>
+              <span className="text-xl font-bold text-foreground mt-0.5 block">
+                {summary.total_izin}
+              </span>
+              <span className="text-[10px] text-muted-foreground block">Sesi / Hari</span>
+            </Card>
+            <Card className="p-3 text-center bg-muted/20">
+              <span className="text-[11px] text-muted-foreground block font-medium">Total Alpa (A)</span>
+              <span className="text-xl font-bold text-foreground mt-0.5 block">
+                {summary.total_alpa}
+              </span>
+              <span className="text-[10px] text-muted-foreground block">Sesi / Hari</span>
+            </Card>
+            <Card className="p-3 text-center bg-muted/20">
+              <span className="text-[11px] text-muted-foreground block font-medium">Rata-rata Kehadiran</span>
+              <span className="text-xl font-bold text-foreground mt-0.5 block">
+                {summary.avg_attendance}%
+              </span>
+              <span className="text-[10px] text-muted-foreground block">Kehadiran Rombel</span>
+            </Card>
+          </div>
+        )}
 
         {/* Tabel Rekapitulasi Presensi */}
         <Card className="overflow-hidden">

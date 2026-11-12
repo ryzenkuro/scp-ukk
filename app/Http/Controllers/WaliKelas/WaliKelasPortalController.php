@@ -285,13 +285,20 @@ class WaliKelasPortalController extends Controller
      */
     public function presensi(Request $request): Response
     {
-        // Pastikan seluruh izin yang disetujui tersinkron ke tabel presensi
+        // Pastikan seluruh izin yang disetujui tersinkron ke tabel presensi (tanpa presensi masa depan)
         AttendanceSyncService::syncAllApprovedLeaves();
 
         $classNames = $this->getAssignedClassNames();
         $selectedClass = $request->input('kelas', $classNames[0] ?? '');
-        $startDate = $request->input('start_date');
-        $endDate = $request->input('end_date');
+        
+        // Default ke bulan berjalan jika tidak ada filter parameter yang dikirim
+        $startDate = $request->has('start_date')
+            ? $request->input('start_date')
+            : now()->startOfMonth()->toDateString();
+        $endDate = $request->has('end_date')
+            ? $request->input('end_date')
+            : now()->endOfMonth()->toDateString();
+
         if ($startDate && $endDate && $endDate < $startDate) {
             $endDate = $startDate;
         }
@@ -347,16 +354,43 @@ class WaliKelasPortalController extends Controller
             ];
         }
 
+        $totalSesiAll = $totalHadir + $totalSakit + $totalIzin + $totalAlpa;
+        if ($totalSesiAll === 0 || ($totalHadir === 0 && $totalAlpa === 0)) {
+            $classRate = 100.0;
+        } else {
+            $classRate = round(($totalHadir / $totalSesiAll) * 100, 1);
+        }
+
+        $isSingleDay = ($startDate && $endDate && $startDate === $endDate);
+
+        // Headcount siswa unik jika mode 1 hari
+        $headcountHadir = $attendances->where('status', 'hadir')->pluck('student_id')->unique()->count();
+        $headcountSakit = $attendances->where('status', 'sakit')->pluck('student_id')->unique()->count();
+        $headcountIzin = $attendances->where('status', 'izin')->pluck('student_id')->unique()->count();
+        $headcountAlpa = $attendances->where('status', 'alpa')->pluck('student_id')->unique()->count();
+
+        // Total sesi pertemuan KBM yang terlaksana (berdasarkan jurnal)
+        $distinctSessions = $attendances->pluck('journal_id')->filter()->unique()->count();
+
         return Inertia::render('WaliKelas/Presensi', [
             'classNames' => $classNames,
             'selectedClass' => $selectedClass,
             'rekapData' => $rekapData,
             'summary' => [
                 'total_students' => count($students),
+                'is_single_day' => $isSingleDay,
+                'total_sessions' => $distinctSessions,
+                // Headcount siswa (untuk mode 1 hari)
+                'headcount_hadir' => $headcountHadir,
+                'headcount_sakit' => $headcountSakit,
+                'headcount_izin' => $headcountIzin,
+                'headcount_alpa' => $headcountAlpa,
+                // Akumulasi sesi KBM (untuk mode periode)
                 'total_hadir' => $totalHadir,
                 'total_sakit' => $totalSakit,
                 'total_izin' => $totalIzin,
                 'total_alpa' => $totalAlpa,
+                'class_attendance_rate' => $classRate,
             ],
             'filters' => [
                 'kelas' => $selectedClass,

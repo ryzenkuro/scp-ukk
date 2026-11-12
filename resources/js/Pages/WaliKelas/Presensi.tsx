@@ -41,10 +41,17 @@ interface PresensiProps {
   rekapData: RekapItem[];
   summary: {
     total_students: number;
+    is_single_day?: boolean;
+    total_sessions?: number;
+    headcount_hadir?: number;
+    headcount_sakit?: number;
+    headcount_izin?: number;
+    headcount_alpa?: number;
     total_hadir: number;
     total_sakit: number;
     total_izin: number;
     total_alpa: number;
+    class_attendance_rate?: number;
   };
   filters: {
     kelas: string;
@@ -72,9 +79,52 @@ export default function Presensi({
     }, { preserveState: true });
   };
 
+  const applyPreset = (preset: 'today' | 'this_month' | 'semester' | 'all') => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const todayStr = `${y}-${m}-${d}`;
+
+    let s = '';
+    let e = '';
+
+    if (preset === 'today') {
+      s = todayStr;
+      e = todayStr;
+    } else if (preset === 'this_month') {
+      const lastDay = new Date(y, now.getMonth() + 1, 0).getDate();
+      s = `${y}-${m}-01`;
+      e = `${y}-${m}-${String(lastDay).padStart(2, '0')}`;
+    } else if (preset === 'semester') {
+      const monthNum = now.getMonth() + 1;
+      if (monthNum >= 7) {
+        s = `${y}-07-01`;
+        e = `${y}-12-31`;
+      } else {
+        s = `${y}-01-01`;
+        e = `${y}-06-30`;
+      }
+    } else if (preset === 'all') {
+      s = '';
+      e = '';
+    }
+
+    setStartDate(s);
+    setEndDate(e);
+
+    router.get('/wali-kelas/presensi', {
+      kelas,
+      start_date: s,
+      end_date: e,
+    }, { preserveState: true });
+  };
+
   const handlePrint = () => {
     window.print();
   };
+
+  const isSingleDay = summary.is_single_day || (startDate && endDate && startDate === endDate);
 
   return (
     <AppLayout title="Rekap Presensi Rombel">
@@ -95,33 +145,50 @@ export default function Presensi({
           </Button>
         </div>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          <Card className="p-3 text-center">
-            <span className="text-xs text-muted-foreground font-medium">Total Siswa</span>
-            <p className="text-xl font-bold mt-0.5">{summary.total_students}</p>
-          </Card>
-          <Card className="p-3 text-center">
-            <span className="text-xs text-muted-foreground font-medium text-emerald-600">Total Hadir</span>
-            <p className="text-xl font-bold mt-0.5 text-emerald-600">{summary.total_hadir}</p>
-          </Card>
-          <Card className="p-3 text-center">
-            <span className="text-xs text-muted-foreground font-medium text-amber-600">Total Sakit</span>
-            <p className="text-xl font-bold mt-0.5 text-amber-600">{summary.total_sakit}</p>
-          </Card>
-          <Card className="p-3 text-center">
-            <span className="text-xs text-muted-foreground font-medium text-sky-600">Total Izin</span>
-            <p className="text-xl font-bold mt-0.5 text-sky-600">{summary.total_izin}</p>
-          </Card>
-          <Card className="p-3 text-center col-span-2 sm:col-span-1">
-            <span className="text-xs text-muted-foreground font-medium text-destructive">Total Alpa</span>
-            <p className="text-xl font-bold mt-0.5 text-destructive">{summary.total_alpa}</p>
-          </Card>
-        </div>
-
         {/* Filter Card */}
-        <Card className="p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+        <Card className="p-4 space-y-3">
+          {/* Tombol Pintas Filter */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-muted-foreground mr-1">Filter Cepat:</span>
+            <Button
+              type="button"
+              size="sm"
+              variant={startDate === endDate && startDate ? "default" : "outline"}
+              onClick={() => applyPreset('today')}
+              className="h-7 text-xs px-3 rounded-full"
+            >
+              Hari Ini
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={startDate && endDate && startDate !== endDate && !startDate.endsWith('-07-01') && !startDate.endsWith('-01-01') ? "default" : "outline"}
+              onClick={() => applyPreset('this_month')}
+              className="h-7 text-xs px-3 rounded-full"
+            >
+              Bulan Ini
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={startDate && (startDate.endsWith('-07-01') || startDate.endsWith('-01-01')) ? "default" : "outline"}
+              onClick={() => applyPreset('semester')}
+              className="h-7 text-xs px-3 rounded-full"
+            >
+              Semester Ini
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={!startDate && !endDate ? "default" : "outline"}
+              onClick={() => applyPreset('all')}
+              className="h-7 text-xs px-3 rounded-full"
+            >
+              Semua Riwayat
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-1 border-t border-border/50">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Kelas Binaan</label>
               <select
@@ -175,6 +242,75 @@ export default function Presensi({
             </div>
           </div>
         </Card>
+
+        {/* Summary Cards (Adaptif: Mode 1 Hari vs Mode Periode KBM) */}
+        {isSingleDay ? (
+          <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
+            <Card className="p-3 text-center bg-muted/20">
+              <span className="text-[11px] text-muted-foreground font-medium block">Total Siswa</span>
+              <p className="text-xl font-bold mt-0.5 text-foreground">{summary.total_students}</p>
+              <span className="text-[10px] text-muted-foreground block">Kelas {selectedClass}</span>
+            </Card>
+            <Card className="p-3 text-center bg-muted/20">
+              <span className="text-[11px] text-muted-foreground font-medium block">Siswa Hadir (H)</span>
+              <p className="text-xl font-bold mt-0.5 text-foreground">{summary.headcount_hadir ?? summary.total_hadir}</p>
+              <span className="text-[10px] text-muted-foreground block">Siswa Mengikuti</span>
+            </Card>
+            <Card className="p-3 text-center bg-muted/20">
+              <span className="text-[11px] text-muted-foreground font-medium block">Siswa Sakit (S)</span>
+              <p className="text-xl font-bold mt-0.5 text-foreground">{summary.headcount_sakit ?? summary.total_sakit}</p>
+              <span className="text-[10px] text-muted-foreground block">Surat Dokter</span>
+            </Card>
+            <Card className="p-3 text-center bg-muted/20">
+              <span className="text-[11px] text-muted-foreground font-medium block">Siswa Izin (I)</span>
+              <p className="text-xl font-bold mt-0.5 text-foreground">{summary.headcount_izin ?? summary.total_izin}</p>
+              <span className="text-[10px] text-muted-foreground block">Izin Disetujui</span>
+            </Card>
+            <Card className="p-3 text-center bg-muted/20">
+              <span className="text-[11px] text-muted-foreground font-medium block">Siswa Alpa (A)</span>
+              <p className="text-xl font-bold mt-0.5 text-foreground">{summary.headcount_alpa ?? summary.total_alpa}</p>
+              <span className="text-[10px] text-muted-foreground block">Tanpa Keterangan</span>
+            </Card>
+            <Card className="p-3 text-center col-span-2 sm:col-span-1 bg-muted/20">
+              <span className="text-[11px] text-muted-foreground font-medium block">Kehadiran Kelas</span>
+              <p className="text-xl font-bold mt-0.5 text-foreground">{summary.class_attendance_rate ?? 100}%</p>
+              <span className="text-[10px] text-muted-foreground block">Tingkat Disiplin</span>
+            </Card>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
+            <Card className="p-3 text-center bg-muted/20">
+              <span className="text-[11px] text-muted-foreground font-medium block">Total Siswa</span>
+              <p className="text-xl font-bold mt-0.5 text-foreground">{summary.total_students}</p>
+              <span className="text-[10px] text-muted-foreground block">Siswa Terdaftar</span>
+            </Card>
+            <Card className="p-3 text-center bg-muted/20">
+              <span className="text-[11px] text-muted-foreground font-medium block">Pertemuan KBM</span>
+              <p className="text-xl font-bold mt-0.5 text-foreground">{summary.total_sessions ?? 0}</p>
+              <span className="text-[10px] text-muted-foreground block">Sesi Terlaksana</span>
+            </Card>
+            <Card className="p-3 text-center bg-muted/20">
+              <span className="text-[11px] text-muted-foreground font-medium block">Total Sakit (S)</span>
+              <p className="text-xl font-bold mt-0.5 text-foreground">{summary.total_sakit}</p>
+              <span className="text-[10px] text-muted-foreground block">Sesi / Hari</span>
+            </Card>
+            <Card className="p-3 text-center bg-muted/20">
+              <span className="text-[11px] text-muted-foreground font-medium block">Total Izin (I)</span>
+              <p className="text-xl font-bold mt-0.5 text-foreground">{summary.total_izin}</p>
+              <span className="text-[10px] text-muted-foreground block">Sesi / Hari</span>
+            </Card>
+            <Card className="p-3 text-center bg-muted/20">
+              <span className="text-[11px] text-muted-foreground font-medium block">Total Alpa (A)</span>
+              <p className="text-xl font-bold mt-0.5 text-foreground">{summary.total_alpa}</p>
+              <span className="text-[10px] text-muted-foreground block">Sesi / Hari</span>
+            </Card>
+            <Card className="p-3 text-center col-span-2 sm:col-span-1 bg-muted/20">
+              <span className="text-[11px] text-muted-foreground font-medium block">Rata-rata Kehadiran</span>
+              <p className="text-xl font-bold mt-0.5 text-foreground">{summary.class_attendance_rate ?? 100}%</p>
+              <span className="text-[10px] text-muted-foreground block">Kehadiran Rombel</span>
+            </Card>
+          </div>
+        )}
 
         {/* Recap Table */}
         <Card>

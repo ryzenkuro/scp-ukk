@@ -35,8 +35,15 @@ class LaporanController extends Controller
         }
 
         $selectedKelas = $request->input('kelas', $kelasList->first() ?? 'X RPL 1');
-        $startDate = $request->input('start_date');
-        $endDate = $request->input('end_date');
+        
+        // Default ke bulan berjalan jika tidak ada filter parameter yang dikirim
+        $startDate = $request->has('start_date')
+            ? $request->input('start_date')
+            : now()->startOfMonth()->toDateString();
+        $endDate = $request->has('end_date')
+            ? $request->input('end_date')
+            : now()->endOfMonth()->toDateString();
+
         if ($startDate && $endDate && $endDate < $startDate) {
             $endDate = $startDate;
         }
@@ -95,7 +102,22 @@ class LaporanController extends Controller
         }
 
         $totalKBMAll = $totalHadirAll + $totalSakitAll + $totalIzinAll + $totalAlpaAll;
-        $classRate = $totalKBMAll > 0 ? round(($totalHadirAll / $totalKBMAll) * 100, 1) : 100.0;
+        if ($totalKBMAll === 0 || ($totalHadirAll === 0 && $totalAlpaAll === 0)) {
+            $classRate = 100.0;
+        } else {
+            $classRate = round(($totalHadirAll / $totalKBMAll) * 100, 1);
+        }
+
+        $isSingleDay = ($startDate && $endDate && $startDate === $endDate);
+
+        // Headcount siswa unik jika mode 1 hari
+        $headcountHadir = $allAttendances->where('status', 'hadir')->pluck('student_id')->unique()->count();
+        $headcountSakit = $allAttendances->where('status', 'sakit')->pluck('student_id')->unique()->count();
+        $headcountIzin = $allAttendances->where('status', 'izin')->pluck('student_id')->unique()->count();
+        $headcountAlpa = $allAttendances->where('status', 'alpa')->pluck('student_id')->unique()->count();
+
+        // Total sesi pertemuan KBM yang terlaksana (berdasarkan jurnal)
+        $distinctSessions = $allAttendances->pluck('journal_id')->filter()->unique()->count();
 
         return Inertia::render('Waka/Laporan/Presensi', [
             'kelasList' => $kelasList,
@@ -108,6 +130,14 @@ class LaporanController extends Controller
             'rekapData' => $rekapData,
             'summary' => [
                 'total_students' => count($students),
+                'is_single_day' => $isSingleDay,
+                'total_sessions' => $distinctSessions,
+                // Headcount siswa (untuk mode 1 hari)
+                'headcount_hadir' => $headcountHadir,
+                'headcount_sakit' => $headcountSakit,
+                'headcount_izin' => $headcountIzin,
+                'headcount_alpa' => $headcountAlpa,
+                // Akumulasi sesi KBM (untuk mode periode rentang tanggal)
                 'total_hadir' => $totalHadirAll,
                 'total_sakit' => $totalSakitAll,
                 'total_izin' => $totalIzinAll,
